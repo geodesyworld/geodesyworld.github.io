@@ -1,0 +1,572 @@
+<html>
+<head>
+<title>GPS Accuracy Monitor  (Garmin GPSMAP 76 and WAAS)</title>
+</head>
+
+<META NAME="KEYWORDS" CONTENT="GPS, accuracy, GPSMAP 76, WAAS, NMEA, Selective Availability, SA">
+
+<body background="whitep.gif" text="#000000" link="#0000ff" vlink="#551a8b" alink="#ff0000">
+
+<h2><strong>GPS ACCURACY MONITOR  (Garmin GPSMAP 76) (with WAAS)</strong></h2>
+
+<p>Dennis Milbert
+
+<pre>
+Updated:  2005-aug-09
+</pre>
+
+<!-------     <br wp="br1"><br wp="br2">     ------>
+<p>This page is for a WAAS <em>enabled</em> GPSMAP 76.
+
+<br wp="br1"><br wp="br2"><h3>Contents</h3>
+
+<ul>
+  <li><a href="#link1">Daily Results in July 2001</a></li>
+  <li><a href="#link2">Precision vs. Accuracy</a></li>
+  <li><a href="#link3">The Experimental Setup</a></li>
+  <li><a href="#link4">Establishing the "True" Coordinates</a></li>
+  <li><a href="#link5">Talk about WAAS</a></li>
+  <li><a href="#link6">Some Error and DOP Plots</a></li>
+  <li><a href="#linkx">More Daily Results in July 2001 (50%)</a></li>
+  <li><a href="#linky">Links to Other Pages</a></li>
+  <li><a href="#linkz">To Contact Me</a></li>
+  <li><a href="index.html">Back To Home</a></li>
+</ul>
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link1"><hr>
+<p>Daily Results in July 2001</a></h4>
+
+<pre>
+                 WAAS Enabled
+                 =============
+	   Accuracy      Precision      Number of
+Day        Hor   Ver     Hor   Ver     30 sec data
+--------------------------------------------------
+Jul 01     6.2  11.7     6.0  11.2        2863
+Jul 02     6.7  11.3     5.9  11.4        2866
+Jul 03     6.9  12.1     6.2  11.9        2860
+Jul 04     6.9  11.4     6.2  10.9        2860
+Jul 05     6.7  11.5     6.3  11.3        2850
+Jul 06     6.1  10.9     5.9  10.9        2860
+Jul 07     6.1  10.8     5.8  10.7        2867
+Jul 08     6.5  11.1     6.2  10.6        2864
+Jul 09     6.5  11.5     6.2  11.3        2869
+Jul 10     7.4  12.2     7.2  11.8        2820
+Jul 11     6.1  11.3     5.9  11.3        2863
+Jul 12     5.8  11.3     5.9  11.4        2569  (1)
+Jul 13     6.1  12.0     6.1  11.9        2866
+Jul 14     6.0  10.8     5.8  10.8        2758
+Jul 15     6.3  11.0     6.1  10.9        2853
+Jul 16     5.7  10.9     5.4  10.7        2864
+Jul 18     5.9  11.3     5.7  10.8        2862
+Jul 19     6.3  10.5     5.6  10.5        2346  (2)
+Jul 20     7.7  14.5     7.0  14.6        2866
+Jul 21     6.4  11.5     5.8  11.6        2859
+Jul 22     6.8  11.8     6.0  11.7        2860
+Jul 23     7.2  11.8     6.2  12.0        2863
+Jul 24     6.3  10.7     5.8  10.7        2861
+Jul 25     6.5  11.3     5.9  11.3        2867
+Jul 26     6.0  10.7     5.3  10.4        2861
+Jul 27     5.9  10.5     5.4  10.6        2844
+Jul 28     6.5  10.3     6.0  10.4        2869
+Jul 30     6.2  13.0     6.1  13.0        2862
+Jul 31     5.8  11.8     5.7  11.6        2875
+
+Note:  units of meters, 95% limits, WAAS enabled
+       dispersion of single measurements, not of sample means
+
+Note:  July 17 lost due to log file error
+Note:  July 29 lost due to my processing error
+
+(1) -- data gap due to cat or wife
+(2) -- data gap due to pc logging error
+
+</pre>
+
+<p>The results above are derived from Garmin GPSMAP 76 NMEA sentences.
+The horizontal coordinates are expressed to the nearest
+0.0001 arc minute in latitude/longitude.  This works out to about
+18 centimeters (N/S) and 14 centimeters (E/W).  Height is expressed to
+the nearest 0.1 meter.  Note that the horizontal "least count" is
+10 times finer than that of the Garmin 12XL. 
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link2"><hr>
+<p>Precision vs. Accuracy</a></h4>
+
+<p>Precision is not the same as accuracy.  Accuracy is a measure of departure
+from the true value of a quantity.  Precision, on the other hand, is a 
+measure of the "repeatability" of the data.  The difference between accuracy
+and precision is known as "bias" or "systematic error".  Taking large amounts
+of data will improve the precision of a sample mean, but will not remove
+systematic error.
+
+<p>As seen from the paragraph above, accuracy is a very desirable measure,
+since it is more general.  However, it is
+generally quite difficult to obtain.  It requires strict control over 
+sources of systematic error.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link3"><hr>
+<p>The Experimental Setup</a></h4>
+
+<p>NMEA 0183 v.2.3 data are collected through the data port of a Garmin
+GPSMAP 76 handheld receiver at 4800 baud. Firmware version 2.03. The connection
+is through a combo PC serial and power cable sold by Garmin (010-10165-00).
+The power part of the cable has a cigarette lighter adapter, which is plugged
+into a power supply from Radio Shack.
+
+<p>The Garmin GPSMAP 76 is set to generate NMEA output in the WGS 84 (G873)
+reference system, in UTC time. These NMEA data contain WAAS-corrected,
+single point position results. 24 hour data files are collected starting
+at the beginning of each day at around 0000 UTC. The GPSMAP 76 is switched
+off and then on again at the beginning of each UTC day.  Logging is started
+when all visible satellites are showing WAAS augmentation.
+
+<p>As a minor note, although the Garmin GPSMAP 76 was set to generate NMEA
+output in the WGS 84 (G873) reference system, it is likely that the process
+of using WAAS correctors actually transformed the output into the ITRF94(1996.0)
+reference frame. However, since these two frames coincide at a few cm level,
+the discrepency is negligible. It is conceivable that the GPSMAP 76 could
+be applying a small correction (ITRF94 --> WGS84), but, IMHO, this is unlikely.
+
+<p>A Mighty Mouse II external (active) antenna feeds to the Garmin GPSMAP
+76 through the BNC connector. The antenna is mounted in the attic of a
+townhouse. While there is no direct view of the sky, the antenna does pick
+up GPS satellites quite well. (Up to 11 satellites in view) There is some
+shielding of the sky view by two lateral connecting walls between the townhouses.
+The antenna location is convenient for GPS monitoring, but is susceptible
+to multipath. The antenna setup remained undisturbed throughout the data
+collection period. Note that since the antenna is stationary, the performance
+statistics represent a stationary mode. GPS receivers may display different
+performances when mobile, due to internal Kalman filters or dynamic tracking
+loops.
+
+<p>NMEA data are generated by the Garmin GPSMAP 76 at a nominal 2 second
+rate (not adjustable). The NMEA ASCII data are collected with a home-brewed
+Java 2 application "<a href="GarNMEA.java.txt">GarNMEA</a>" running on
+a PC-type laptop (Pentium II, 266 MHz).
+
+<p>After each collection of (about) 24 hours of NMEA data, they are processed
+through a sequence of steps. First, the data are decimated to 30 seconds
+and the "$GPGGA" sentences are parsed to extract geodetic latitude, longitude,
+orthometric and geoid heights. Orthometric and geoid heights are summed
+to generate the ellipsoidal heights. The time of day in seconds, geodetic
+latitudes, longitudes, and ellipsoid heights are written to a file for
+subsequent processing.
+
+<p>Next, the decimated data are processed for the precision results. The
+average geodetic latitude, longitude, and ellipsoid height is computed
+for each daily file. Horizontal and vertical residuals (departures) between
+each data point and the daily mean are formed. The horizontal and absolute
+value of the vertical residuals are sorted, and the 95% limit is reported.
+
+<p>A similar process is used for the accuracy results. The "true" position
+of the antenna was established by <a href="#link4">the method described
+below</a>. Horizontal and vertical residuals (departures) between each
+data point and the true values are formed. The horizontal and absolute
+value of the vertical residuals are sorted, and the 95% limit is reported.
+
+<p>It should be noted that the method of establishing the 95% limit for
+precision and accuracy is nonparametric in character. That is, there is
+no underlying assumptions on distribution of the residuals. The residuals
+are sorted in ascending order, counted, and the 95% error limit is reported.
+The errors will contain non-Gaussian, time correlated error sources, such
+as unmodeled atmospheric effects and multipath. It wasn't felt that derivation
+of 95% critical values from sample standard deviations (assuming underlying
+Gaussian or Rayleigh statistics) would be desirable.
+
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link4"><hr>
+<p>Establishing the "True" Coordinates</a></h4>
+
+<p>To detect systematic error, one needs reference coordinates; 
+preferably, as error free as possible.  A typical source of such
+control is a monumented point surveyed by a geodetic agency or a
+state highway department.
+
+<p>In this case, the reference location was the phase center of the
+Mighty Mouse II antenna, mounted on an unused TV antenna in the
+attic of a townhouse.  The general methodology was to process
+carrier phase data extracted from the Garmin proprietary (binary)
+data streams taken prior to the May experiment.  Phase data were processed in
+both double difference and in triple difference modes.  As a cross-check,
+carrier phase data were processed from a CMC (now BAE) Superstar development 
+kit using a separate GPS active antenna mounted on that same TV antenna.
+
+<p>The extraction of carrier phase was performed with a Garmin 12XL,
+and is described
+ in the web pages of Professor Antonio Tabernero Galán,
+
+<a href="http://artico.lma.fi.upm.es/numerico/miembros/antonio/async/">"Obtaining raw data from some Garmin units"</a>.
+
+His "async" application logs the Garmin binary data.
+Initially, his "gar2rnx" program was used to translate the binary
+data into a Rinex format.  But, later, a home-brewed Fortran application, "g2r",
+performed this function (written as I learned more about the binary format).
+
+<p>Rinex data from the Mighty Mouse II antenna location were combined with
+Rinex data from the 
+<a href="http://www.ngs.noaa.gov/CORS/">National CORS</a>
+station, GAIT; which is just under
+7 km away.  These are single frequency (L1) results.  But it expected
+that the differential ionosphere error should seldom exceed 5 PPM
+(3.5 cm).  Processing was performed with JPL orbits in the ITRF97(1997.0) reference
+system.  The reference coordinate for the GAIT L1 phase center was also in the ITRF97(1997.0) frame.
+The final coordinates are in the ITRF97(1997.0) frame, not in the WGS 84 (G873).
+However, this small difference (~10 cm) should be considered negligible for the
+purposes of this experiment.
+
+<p>The translated Garmin 12XL data have a large number of cycle
+slips, and these are half-wavelength cycle slips.  That is, a cycle slip
+can be 0.5, 1.0, 1.5, 2.0, ... L1 wavelengths.  Triple difference processing,
+when combined with outlier detection, is highly robust against cycle slips.
+Long data spans (such as 24 hours) help improve the less accurate results
+typically associated with triple differences.
+
+<p>Double difference processing requires the detection and repair of the
+half-integer cycle slips.  The experimental software was only successful
+in certain segments of the data stream.  Even so, a couple of sets of 
+around 2 hours duration were repaired and solved.  It must be emphasized that 
+any processing software that is applied must be able to accommodate
+half-integer cycle slips/ambiguities.
+
+<p>The three 24 hour triple difference solutions agreed with 4 cm.
+The double difference and triple difference results compared at
+a 14 cm level.  This Mighty Mouse II ellipsoid height also matched
+the BAE Superstar results within this tolerance.  This agreement of
+results, while single frequency, in the ITRF97(1997.0) frame, with no differential
+troposphere correction, is encouraging.
+
+<p>It is believed that the reference coordinates for the Mighty 
+Mouse II antenna are probably accurate to better than 0.5 meters.
+
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link5"><hr>
+<p>Talk about WAAS</a></h4>
+
+<p>WAAS stands for Wide Area Augmentation System. It is sometimes thought
+of as a "Coast Guard-like" system that uses geostationary satellites, instead
+of ground-based beacons, to provide improved GPS accuracy. The details
+of operation, however, show it to be a different kind of creature. But,
+the result is the same: higher accuracy (and integrity).
+
+<p>The WAAS signal is on the L1 frequency (1575.42 MHz). It is beamed from
+geostationary satellites (GEOs), instead of from the GPS satellites themselves.
+The WAAS signal shares the L1 frequency with GPS. This apparent conflict
+is resolved by assigning different PRN codes to the WAAS (120-138). This
+allows a GPS receiver (with suitable firmware) to acquire WAAS signals
+as well as the GPS. By contrast, Coast Guard beacons transmit on several
+frequencies around 300 KHz, and require a separate receiver/antenna.
+
+<p>The WAAS signal has different content than that of the Coast Guard.
+The WAAS messages provide corrections to the GPS broadcast orbits and clocks,
+whereas the Coast Guard messages are corrections to pseudoranges. The WAAS
+messages can be thought of as providing an improved orbit/clock model,
+while the Coast Guard messages indicate the misfit between the GPS broadcast
+orbit/clock and the "truth". The WAAS messages have specific elements for
+orbit and clock, and are computed for the various satellites (PRN's). The
+WAAS also transmits ionospheric corrections in a grid format. The Coast
+Guard messages are an aggregate element that includes orbit, clock, ionosphere,
+troposphere, etc..., as sensed at a specific beacon.
+
+<p>So, what does this mean?
+
+<p>The WAAS signals are general. This is where the "WA" in "WAAS" comes
+from -- "Wide Area". The Coast Guard signals are specific to a beacon location.
+That is, DGPS is very good when very close to a beacon, and degrades further
+away. One DGPS rule of thumb is 1 meter + 1 meter/100 km of distance. The
+WAAS accuracy is more uniform within the service area.
+
+<p>This also means that the WAAS has a different support infrastructure
+than that of the Coast Guard. To compute these more general correction
+messages, data are shipped to master stations (WAMS -- Wide Area Master
+Stations), for processing and subsequent uplink thru 3 different Ground
+Earth Stations. The current system has 25 reference stations and 2 master
+stations. By contrast, the Coast Guard messages are computed and transmitted
+locally at each beacon site.
+
+<p>The WAAS was designed specifically as a system for aviation navigation
+(from en route to precision approach). As such, transmitting the WAAS messages
+from GEOs was seen as appropriate, since an aircraft at altitude would
+generally see a GEO. On the ground, when the line of sight to a GEO is
+blocked, you don't get WAAS. WAAS is currently served by two GEOs (Inmarsat
+III):
+
+<pre> 
+Name     Series      Long.    PRN    Garmin ID
+-----    -------    ------    ---    ---------
+AOR-W    3F4          54W     122       35
+POR      3F3/2F1     178E     134       47
+</pre>
+
+<p>For a picture of the GEO footprints, as well as other WAAS info, go to
+<a href="http://www.gpsinformation.net/exe/waas.html">Jack Yeazel's page</a>.
+
+<p>The WAAS system also provides corrections in a different datum than
+that of the Coast Guard DGPS. WAAS uses reference coordinates in ITRF94(1996.0),
+which can be considered equivalent to WGS 84 (G873). The Coast Guard system
+uses NAD 83 reference coordinates. Hence, application of the correctors,
+either to broadcast elements (WAAS) or to pseudoranges (DGPS) yield different
+datums. As always, coordinates computed in a GPS receiver can always be
+transformed into another datum for output.
+
+<p>An interesting aspect of the WAAS system is that it is possible to use
+the L1 WAAS signal from the GEOs as a ranging signal, much as is done with
+the L1 signals from GPS. In WAAS, the GEOs are used as an "extra GPS satellite".
+The WAAS broadcast messages include orbit and apparent clock info for the
+GEOs. This is why in a GPSMAP 76 it is possible to see both a grey bar
+as well as a solid black bar appear for the WAAS GEO. The solid black bar
+indicates that the GEO satellite's navigation information has been received,
+its ranging signal is being received, and that it is directly participating
+in the position solution.
+
+<p>The generation of the WAAS ranging signal itself is also interesting.
+In GPS, the range signal is generated from a set of atomic clocks onboard
+the GPS satellite. In WAAS, the signal is generated <i>on the ground</i>
+with WAAS Network Time. The signal is beamed up to the GEO, where a "bent
+pipe" transponder sends it back down to the service area.
+
+<p>One aspect of both DGPS and WAAS, not tested here, is that they both provide
+an integrity signal (timely warnings when user position errors grow too
+large for a given application).
+
+<p>Just a final word. Official description of the WAAS program is found
+at the <a href="http://gps.faa.gov/Programs/index.htm">FAA Programs Page</a>
+and clicking on the left menu for the WAAS Program.
+The WAAS Specification is documented in
+<a href="http://www.faa.gov/asd/international/GUIDANCE_MATL/2892b_c1.pdf">"2892b_c1.pdf"</a>.
+
+An interesting
+FAQ that "compares and contrasts" WAAS and DGPS can be found at the 
+
+<a href="http://www.navcen.uscg.gov/gps/WAAS-DGPS.htm">USCG DGPS vs WAAS page</a>.
+
+<p><font size=-1>
+Fine Print: Thanks to Dr. Chris Hegarty for review. He is a scholar and a gentleman.
+</font>
+
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link6"><hr>
+<p>Some Error and DOP Plots</a></h4>
+
+This section is dedicated to John Bonde, based on his excellent
+questions.  The plots are for July 9, 2001.  
+
+<ul>
+  <li><a href="ehor0709.gif"  >Horizontal Error</a></li>
+  <li><a href="ehor07092.gif" >Horizontal Error (N/S vs. E/W)</a></li>
+  <li><a href="hdop0709.gif"  >HDOP</a></li>
+  <li><a href="nsat0709.gif"  >Number of Satellites</a></li>
+  <li><a href="herdop0709.gif">Horizontal Error vs. HDOP</a></li>
+  <li><a href="ever0709.gif"  >Vertical Error</a></li>
+  <li><a href="vdop0709.gif"  >VDOP</a></li>
+  <li><a href="verdop0709.gif">Vertical Error vs. VDOP</a></li>
+  <li><a href="herver0709.gif">Horizontal Error vs. Vertical Error</a></li>
+</ul>
+
+<p>It is seen that the HDOP's look very much like those for the
+<a href="hdop0504.gif">Garmin 12XL</a> and the 
+<a href="hdop0608.gif">non-WAAS 76</a>. 
+This should be no surprise, since the same antenna was used,
+and there is not much blockage to cause differences
+in the satellite visibility between May and July. 
+The HDOP's reach a low of 0.8 and seldom exceed 2.0.
+
+<p>The horizontal error is plotted in two ways.  One is as a time
+series, and the other is as an overhead view of scatter.
+Because of the finer granularity of the GPSMAP 76
+NMEA messages compared to those of the 12XL (factor of 10),
+structure in the horizontal error is seen to be roughly 
+comparable to that in the vertical error.
+
+<p>The vertical error is not centered about 0.  As was seen in the 
+<a href="ever0504.gif">12XL vertical error</a> and the 
+<a href="ever0608.gif">non-WAAS 76 vertical error</a>,
+there is an upward systematic error.  Unlike the 12XL, this 
+systematic error is of much smaller magnitude.
+And when compared to the GPSMAP 76 with WAAS off, there is 
+little discernable systematic error.
+The WAAS corrections incorporate a gridded ionosphere model
+that is updated on a frequent basis.  This is seen to be
+superior to the GPS broadcast ionosphere model.
+Both the WAAS corrected and non-WAAS corrected results will
+share the same troposphere model error.
+
+<p>To gain a better perspective of the relation between error
+and satellite geometries (DOP), plots are presented showing 
+Horizontal Error vs. HDOP and Vertical Error vs. VDOP.
+It is seen that there is no marked correlation between
+the error and the DOP's.  Many cases are evident of low DOP's
+and high errors, and vice versa.  
+
+<p>As noted with the 12XL, the horizontal and vertical errors
+do not <em>look</em> random.  Aside from the spikes, one can see
+gradual drifts, and more rapid oscillations within those drifts.
+This is the time correlation (caused by various systematic errors)
+noted by other investigators.  To reliably average a point, a good
+deal of data is needed.
+
+<p>As further investigation, the horizontal and vertical departures 
+from the mean plotted against each other.  The vertical departures
+("residuals") have the absolute value taken; so that they are 
+comparable to the horizontal ("radial") departures.  Here a distinct,
+although noisy, trend is seen.  Horizontal error is correlated with
+vertical error.  The ratio of horizontal to vertical error is seen
+to range from about 1:1 to 1:4.  It is gratifying to note that these
+ratios are not inconsistent with what one would expect from DOP's.
+
+<p>The conclusions that can be drawn from these plots is that there is
+systematic error that has a time variable character, but is not strongly
+linked to satellite geometry.
+Note that this may only hold for the low (good)
+DOP levels that were obtained.  The correlation between horizontal and
+vertical error is consistent with error due to residual 
+ionosphere or multipath effects.
+
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="linkx"><hr>
+<p>More Daily Results in July 2001 (50%)</a></h4>
+
+This section is just to give an idea of what the 50% limits looks
+like.  Half the data points performed better than the limit, and
+half the data were worse.
+
+<pre>
+                 WAAS Enabled
+                 =============
+	   Accuracy      Precision      Number of
+Day        (H)   (V)     (H)   (V)     30 sec data
+--------------------------------------------------
+Jul 01     2.7   3.4     2.3   3.5        2863
+Jul 02     2.7   3.0     2.3   3.0        2866
+Jul 03     2.7   3.4     2.3   3.4        2860
+Jul 04     2.8   3.4     2.4   3.4        2860
+Jul 05     3.0   3.4     2.6   3.4        2850
+Jul 06     2.6   3.2     2.4   3.2        2860
+Jul 07     2.4   3.1     2.2   3.1        2867
+Jul 08     2.5   3.4     2.3   3.2        2864
+Jul 09     2.7   3.3     2.5   3.4        2869
+Jul 10     2.7   3.9     2.7   3.6        2820
+Jul 11     2.5   3.2     2.4   3.1        2863
+Jul 12     2.3   3.3     2.3   3.2        2569  (1)
+Jul 13     2.6   3.3     2.5   3.2        2866
+Jul 14     2.5   3.2     2.4   3.2        2758
+Jul 15     2.3   3.1     2.2   3.0        2853
+Jul 16     2.4   2.9     2.1   2.9        2864
+Jul 18     2.4   3.2     2.3   3.2        2862
+Jul 19     2.8   3.3     2.2   3.3        2346  (2)
+Jul 20     2.9   3.6     2.5   3.5        2866
+Jul 21     2.8   3.3     2.3   3.3        2859
+Jul 22     3.0   3.3     2.4   3.3        2860
+Jul 23     3.2   3.4     2.6   3.4        2863
+Jul 24     2.9   3.1     2.3   3.1        2861
+Jul 25     2.8   2.9     2.3   2.9        2867
+Jul 26     2.7   3.0     2.2   3.0        2861
+Jul 27     2.6   3.1     2.3   3.2        2844
+Jul 28     2.5   3.0     2.2   2.9        2869
+Jul 30     2.5   3.7     2.3   3.5        2862
+Jul 31     2.5   3.1     2.3   3.1        2875
+
+Note:  units of meters, 50% limits, WAAS enabled
+       dispersion of single measurements, not of sample means
+
+Note:  July 17 lost due to log file error
+Note:  July 29 lost due to my processing error
+
+(1) -- data gap due to cat or wife
+(2) -- data gap due to pc logging error
+</pre>
+
+<p>The results above are derived from Garmin GPSMAP 76 NMEA sentences.
+The horizontal coordinates are expressed to the nearest
+0.0001 arc minute in latitude/longitude.  This works out to about
+18 centimeters (N/S) and 14 centimeters (E/W).  Height is expressed to
+the nearest 0.1 meter.  Note that the horizontal "least count" is
+10 times finer than that of the Garmin 12XL. 
+
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="linky"><hr>
+<p>Links to Other Pages</a></h4>
+
+<p>The links here are for some other sites that talk about GPS accuracy.
+
+<ul>
+
+<p>Sam Wormley:
+<a href="http://www.edu-observatory.org/gps/gps_accuracy.html">"GPS Errors & Estimating Your Receiver's Accuracy"</a>.
+
+<p>David L. Wilson:
+<a href="http://users.erols.com/dlwilson/gps.htm">"GPS Accuracy Web Page"</a>.
+
+<p>Jack Yeazel:
+<a href="http://www.gpsinformation.net/waas/vista-waas.html">"Vista WAAS On/Off Tests in the Open"</a>.
+
+<!-- ---------------------------------------- missing ---------------------------------------------------------------- -->
+<!-- <p>John Bonde:                                                                                                    -->
+<!-- <a href="http://sparkie.nrri.umn.edu/saoff/intro.html">"Garmin 12-Series Receiver Accuracy Report - Post SA"</a>. -->
+<!-- ---------------------------------------- missing ---------------------------------------------------------------- -->
+
+<p>Wolfgang Rupprecht:
+<a href="http://www.wsrcc.com/wolfgang/gps/accuracy.html">"Post SA GPS Accuracy Measurements"</a>.
+
+<p>Heinrich Pfeifer:
+<a href="http://www.gartrip.de/long.htm">"A long term fix with GPS and GARtrip"</a>.
+
+<!-- ---------------------------------------- missing ------------------------------------------------------ -->
+<!-- <p>Prof. Dr. Arno Schroth:                                                                              -->
+<!-- <a href="http://www.dlr.de/KN/KN-NL">"GPS and GLONASS Monitoring site"</a>. (in German, but nice plots) -->
+<!-- ---------------------------------------- missing ------------------------------------------------------ -->
+
+<p>Tom Chester:
+<a href="http://tchester.org/sgm/analysis/gps/etrex_saved_track_accuracy.html">"Accuracy of Tracks From a Garmin Etrex GPS Receiver"</a>.
+
+<p>National Geodetic Survey, NOAA:
+<a href="http://www.ngs.noaa.gov/FGCS/info/sans_SA/">"Removal Of GPS Selective Availability"</a>.
+
+</ul>
+
+<p>
+<p>Next are PDF reports describing GPS (and WAAS) performance.  Their GPS PAN archive index is incomplete,
+but the reports are present in the "reports" directory.  For example: GPS PAN report #47 can be found at:
+http://www.nstb.tc.faa.gov/reports/pan47_1004.pdf   For the GPS PAN reports, pay particular attention to 
+Figures 5-1 and 5-2.  Also, monitor site behavior is broken out in Table 5-1.  Note that the "Predictable
+Accuracy" values quoted in their Appendix A's are based on the <em>worst</em> monitor site in the quarter.
+
+<ul>
+  <p>Federal Aviation Administration:
+  <a href="http://www.nstb.tc.faa.gov/ArchiveList.html">"Archive list of WAAS PAN Reports and SPS PAN Reports"</a>.
+</ul>
+
+<p>
+<p>This is the "kewlest" site.  Kudos!
+<ul>
+  <p>Professor Antonio Tabernero Galán:
+  <a href="http://artico.lma.fi.upm.es/numerico/miembros/antonio/async/">"Obtaining raw data from some Garmin units"</a>.
+</ul>
+
+<!-- ------------------------------------------------------------------ -->
+<br wp="br1"><br wp="br2"><h4><a name="linkz"><hr>
+<p>To Contact Me</a></h4>
+
+<p>My e-mail user name is the first initial of my first name
+followed by all the letters of my last name (see above).  My ISP is
+"comcast", and it is a "dot-net", not a "dot-com".  Sorry for not spelling
+out my e-mail address, but I try to keep the spam-bots
+from fingering me.  But, just so the spam-bots don't feel left
+out, they can always go to abuse@comcast.net
+
+<!-- ------------------------------------------------------------------ -->
+<br wp="br1"><br wp="br2"><hr>
+
+<p>
+<a href="index.html">Back To Home</a>
+
+</body>
+</html>

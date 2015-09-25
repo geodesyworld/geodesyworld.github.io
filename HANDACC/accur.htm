@@ -1,0 +1,553 @@
+<html>
+<head>
+<title>GPS Accuracy Monitor  (Garmin 12XL)</title>
+</head>
+
+<META NAME="KEYWORDS" CONTENT="GPS, accuracy, 12XL, NMEA, Selective Availability, SA">
+
+<body background="whitep.gif" text="#000000" link="#0000ff" vlink="#551a8b" alink="#ff0000">
+
+<h2><strong>GPS ACCURACY MONITOR  (Garmin 12XL)</strong></h2>
+
+<p>Dennis Milbert
+
+<pre>
+Updated:  2005-aug-09 
+</pre>
+
+<!-------     <br wp="br1"><br wp="br2">     ------>
+<p>This page is written to celebrate the one year anniversery of setting
+Selective Availability (SA) to zero.  What better way to mark the occasion 
+than to track the accuracy of the unaugmented GPS positioning?
+
+<br wp="br1"><br wp="br2"><h3>Contents</h3>
+
+<ul>
+  <li><a href="#link0">Plots and Discussion</a></li>
+  <li><a href="#link1">Daily Results in May 2001</a></li>
+  <li><a href="#link2">Precision vs. Accuracy</a></li>
+  <li><a href="#link3">The Experimental Setup</a></li>
+  <li><a href="#link4">Establishing the "True" Coordinates</a></li>
+  <li><a href="#link5">Why is the Elevation Biased?</a></li>
+  <li><a href="#link6">Some Error and DOP Plots</a></li>
+  <li><a href="#linkx">More Daily Results in May 2001 (50%)</a></li>
+  <li><a href="#linky">Links to Other Pages</a></li>
+  <li><a href="#linkz">To Contact Me</a></li>
+  <li><a href="index.html">Back To Home</a></li>
+</ul>
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link0"><hr>
+<p>Plots and Discussion</a></h4>
+
+<p>The first part of the answer is that there is a surprising amount of
+day to day variation, even when 24 hour datasets are considered.  The
+second part of the answer is that the 95% limit is greatly affected by 
+unmodeled, systematic error -- so that the 95% limit shows greater variation
+than the 50% limit.  Statistically, the 95% limit is a less "robust"
+descriptor.  Your performance on any given day, much less any given minute,
+is a variable quantity.
+
+<pre>
+       Results for a Month  (Garmin 12XL)
+
+   Horizontal Accuracy (50%)    3.9 meters
+   Vertical Accuracy   (50%)    9.6 meters
+   Horizontal Accuracy (95%)    9.3 meters
+   Vertical Accuracy   (95%)   21.9   meters
+</pre>
+
+<p>  The Plots
+
+<ul>
+  <li><a href="h50.gif">Horizontal Error (50%)</a></li>
+  <li><a href="v50.gif">Vertical Error (50%)</a></li>
+  <li><a href="h95.gif">Horizontal Error (95%)</a></li>
+  <li><a href="v95.gif">Vertical Error (95%)</a></li>
+</ul>
+
+<p>It is seen that the plots of horizontal accuracy vs. precision are
+virtually indistinguishable.  There is distinct difference between the
+vertical accuracy vs. precision plots; evidence of systematic error.
+This is discussed further down in 
+<a href="#link5">"Why is the Elevation Biased?"</a>.
+
+<p>It is worth stating that these results are for a Garmin 12XL, and
+should not be assumed to hold for other receivers.  Recall that the
+12XL was engineered when SA was still active, so that algorithmic
+shortcuts may have been taken.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link1"><hr>
+<p>Daily Results in May 2001</a></h4>
+
+<pre>
+	   Accuracy      Precision      Number of
+Day        Hor   Ver     Hor   Ver     30 sec data
+--------------------------------------------------
+May 01     9.5  25.6     9.4  17.5        2863
+May 02     9.8  24.7    10.2  16.6        2871
+May 03     9.6  26.6     9.7  17.0        2872
+May 04    10.2  24.0    10.0  19.0        2855
+May 05     9.6  24.4     9.5  18.0        1501  (1)
+May 06     9.4  24.9     9.0  17.5        2874
+May 07     8.4  22.1     8.4  15.9        2871
+May 08     9.5  22.9     9.2  16.7        2871
+May 09     9.6  20.2     9.7  16.5        2874
+May 10     9.4  18.8     9.2  15.5        2859
+May 11     8.9  18.7     8.9  14.9        1573  (2)
+May 12     8.4  17.9     8.3  14.6        2751  (3)
+May 13     8.4  19.6     8.4  14.9        2873
+May 14     9.8  19.3    10.3  16.8        2873
+May 15     9.8  21.1     9.7  16.5        2875
+May 16     9.2  17.4     9.3  14.3        2874
+May 17     8.9  20.7     8.6  16.1        2874
+May 18     9.5  21.6     9.2  16.7        2847
+May 19     9.0  19.3     8.8  14.0        2870
+May 20     9.8  22.7    10.1  19.1        2857
+May 21     9.2  22.7     9.1  16.3        2829
+May 22    10.2  24.0    10.1  17.3        2873
+May 23     9.2  22.1     9.2  17.1        2847
+May 24     8.9  22.5     8.7  16.7        2873
+May 25     9.2  20.7     9.0  14.3        2841
+May 26    10.2  23.5    10.1  17.7        2874
+May 27     9.6  23.8     9.6  18.2        2794
+May 28     8.9  22.2     9.0  17.6        2881
+May 29     9.8  20.2     9.5  17.1        2876
+May 30     9.1  21.9     8.8  15.7        2876
+May 31     8.7  23.0     8.6  16.7        2874
+
+Note:  units of meters, 95% limits
+       dispersion of single measurements, not of sample means
+
+(1) -- intermittent data dropouts due to software bug
+(2) -- data gap due to neighborhood power failure
+(3) -- data gap due to equipment test
+</pre>
+
+<p>The results above are derived from Garmin 12XL NMEA sentences.
+The horizontal coordinates are only expressed to the nearest
+0.001 arc minute in latitude/longitude.  This works out to about
+1.8 meters (N/S) and 1.4 meters (E/W).  Height is expressed to
+the nearest 0.1 meter.    
+
+<p>There is an apparent increase in performance on May 10-13.
+However, May 11 is a not full data set.  No cause is suggested at 
+this time.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link2"><hr>
+<p>Precision vs. Accuracy</a></h4>
+
+<p>Precision is not the same as accuracy.  Accuracy is a measure of departure
+from the true value of a quantity.  Precision, on the other hand, is a 
+measure of the "repeatability" of the data.  The difference between accuracy
+and precision is known as "bias" or "systematic error".  Taking large amounts
+of data will improve the precision of a sample mean, but will not remove
+systematic error.
+
+<p>As seen from the paragraph above, accuracy is a very desirable measure,
+since it is more general.  However, it is
+generally quite difficult to obtain.  It requires strict control over 
+sources of systematic error.  The results indicate a bias in the elevations
+logged from the 12XL.  This is discussed further down in 
+<a href="#link5">"Why is the Elevation Biased?"</a>.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link3"><hr>
+<p>The Experimental Setup</a></h4>
+
+<p> NMEA 0183 v.2.0 data are collected through the data port of a Garmin 12XL
+handheld receiver at 4800 baud.  Firmware version 4.57.  The connection is
+through a combo PC serial and power cable sold by Garmin (010-10165-00).  
+The power part of the cable
+has a cigarette lighter adapter, which is plugged into a power supply
+from Radio Shack.  
+
+<p> The Garmin 12XL is set to generate NMEA output in the
+WGS 84 (G873) reference system, in UTC time.  These NMEA data contain 
+unaugmented, single point position results.  24 hour data files are
+collected starting at the beginning of each day at around 0000 UTC. 
+The 12XL is switched off and then on again at the beginning of each UTC day.
+
+<p> A Mighty Mouse II external (active) antenna feeds to the Garmin 12XL
+through the BNC connector.
+The antenna is mounted in the attic of a townhouse.  While there is no direct view of
+the sky, the antenna does pick up GPS satellites quite well.
+(Up to 11 satellites in view)
+  There is
+some shielding of the sky view by two lateral connecting walls between the townhouses.
+The antenna location is convenient for GPS monitoring, but is susceptible to
+multipath.  The antenna setup remained undisturbed throughout the data
+collection period.  Note that since the antenna is stationary, the performance
+statistics represent a stationary mode.  GPS receivers may display 
+different performances when mobile, due to internal Kalman filters or 
+dynamic tracking loops.
+
+<p> NMEA data are generated by the Garmin 12XL at a nominal 2 second rate
+(not adjustable).  The NMEA ASCII data are collected with a home-brewed Java 2 
+application "<a href="GarNMEA.java.txt">GarNMEA</a>" running on a PC-type laptop 
+(Pentium II, 266 MHz).
+
+<p> After each collection of (about) 24 hours of NMEA data, they are processed
+through a sequence of steps.  First, the data are decimated to 30 seconds and
+the "$GPGGA" sentences are parsed to extract geodetic latitude, longitude,
+orthometric and geoid heights.  Orthometric and geoid heights are summed to
+generate the ellipsoidal heights.  The time of day in seconds, geodetic latitudes,
+longitudes, and ellipsoid heights are written to a file for subsequent
+processing.
+
+<p> Next, the decimated data are processed for the precision results.  The average
+geodetic latitude, longitude, and ellipsoid height is computed for each daily
+file.  Horizontal and vertical residuals (departures) between each data point
+and the daily mean are formed.  The horizontal and absolute value of the vertical 
+residuals are 
+sorted, and the 95% limit is reported.  
+
+<p> A similar process is used for the accuracy results.  The "true" position
+of the antenna was established by 
+<a href="#link4">the method described below</a>.
+Horizontal and vertical residuals (departures) between each data point
+and the true values are formed.  The horizontal and absolute value of the vertical 
+residuals are 
+sorted, and the 95% limit is reported.
+
+<p> It should be noted that the method of establishing the 95% limit
+for precision and accuracy is nonparametric in character.  That is,
+there is no underlying assumptions on distribution of the residuals.
+The residuals are sorted in ascending order, counted, and the 95% error
+limit is reported.  The errors will contain non-Gaussian, time correlated
+error sources, such as unmodeled atmospheric effects and multipath.  
+It wasn't felt that derivation of 95% critical values from sample
+standard deviations (assuming underlying Gaussian or Rayleigh statistics) 
+would be desirable.
+
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link4"><hr>
+<p>Establishing the "True" Coordinates</a></h4>
+
+<p>To detect systematic error, one needs reference coordinates; 
+preferably, as error free as possible.  A typical source of such
+control is a monumented point surveyed by a geodetic agency or a
+state highway department.
+
+<p>In this case, the reference location was the phase center of the
+Mighty Mouse II antenna, mounted on an unused TV antenna in the
+attic of a townhouse.  The general methodology was to process
+carrier phase data extracted from the Garmin proprietary (binary)
+data streams taken prior to the May experiment.  Phase data were processed in
+both double difference and in triple difference modes.  As a cross-check,
+carrier phase data were processed from a CMC (now BAE) Superstar development 
+kit using a separate GPS active antenna mounted on that same TV antenna.
+
+<p>The extraction of carrier phase from a Garmin 12XL is described
+ in the web pages of Professor Antonio Tabernero Galán,
+
+<a href="http://artico.lma.fi.upm.es/numerico/miembros/antonio/async/">"Obtaining raw data from some Garmin units"</a>.
+
+His "async" application logs the Garmin binary data.
+Initially, his "gar2rnx" program was used to translate the binary
+data into a Rinex format.  But, later, a home-brewed Fortran application, "g2r",
+performed this function (written as I learned more about the binary format).
+
+<p>Rinex data from the Mighty Mouse II antenna location were combined with
+Rinex data from the 
+<a href="http://www.ngs.noaa.gov/CORS/">National CORS</a>
+station, GAIT; which is just under
+7 km away.  These are single frequency (L1) results.  But it expected
+that the differential ionosphere error should seldom exceed 5 PPM
+(3.5 cm).  Processing was performed with JPL orbits in the ITRF97(1997.0) reference
+system.  The reference coordinate for the GAIT L1 phase center was also in the ITRF97(1997.0) frame.
+The final coordinates are in the ITRF97(1997.0) frame, not in the WGS 84 (G873).
+However, this small difference (~10 cm) should be considered negligible for the
+purposes of this experiment.
+
+<p>The translated Garmin 12XL data have a large number of cycle
+slips, and these are half-wavelength cycle slips.  That is, a cycle slip
+can be 0.5, 1.0, 1.5, 2.0, ... L1 wavelengths.  Triple difference processing,
+when combined with outlier detection, is highly robust against cycle slips.
+Long data spans (such as 24 hours) help improve the less accurate results
+typically associated with triple differences.
+
+<p>Double difference processing requires the detection and repair of the
+half-integer cycle slips.  The experimental software was only successful
+in certain segments of the data stream.  Even so, a couple of sets of 
+around 2 hours duration were repaired and solved.  It must be emphasized that 
+any processing software that is applied must be able to accommodate
+half-integer cycle slips/ambiguities.
+
+<p>The three 24 hour triple difference solutions agreed with 4 cm.
+The double difference and triple difference results compared at
+a 14 cm level.  This Mighty Mouse II ellipsoid height also matched
+the BAE Superstar results within this tolerance.  This agreement of
+results, while single frequency, in the ITRF97(1997.0) frame, with no differential
+troposphere correction, is encouraging.
+
+<p>It is believed that the reference coordinates for the Mighty 
+Mouse II antenna are probably accurate to better than 0.5 meters.
+
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link5"><hr>
+<p>Why is the Elevation Biased?</a></h4>
+
+<p>This is not the first detection of biased heights from a Garmin 12XL.
+See David L. Wilson's
+
+<a href="http://users.erols.com/dlwilson/gpsvert.htm">"Modeling Of GPS Vertical Errors"</a>
+
+for example.
+
+<p>Although there is no official word from Garmin, the buzz on the
+net is that there is no ionosphere nor troposphere model correction
+to the 12XL data.  If these error sources are not modeled, then they
+will bias the elevation.
+
+<p>How does this happen?
+
+<p>The ionosphere is a region extending from 80 km to over 640 km above
+the Earth.  The free electrons in the ionosphere cause a delay in the 
+code modulation, thus making the measured pseudoranges appear longer than
+they really are.  The delay is greatest in equatorial regions (i.e. beneath the
+Sun).  Typical mid-latitude range delays are 5 to 15 m at zenith.  Ionosphere
+delay is less at night, and is greatest at around 1400 local time.
+
+<p>The ionosphere delay also varies with the vertical angle (look angle)
+to the satellite.  The pseudorange from a GPS satellite low on the horizon
+travels through more of the ionosphere than one at the zenith.  This
+scale factor (or mapping function, or obliquity factor) ranges from 1.0
+at zenith to about 3.0 at 5 degrees vertical angle.  Thus we see that low
+angle pseudoranges have significantly more delay than high angle pseudoranges.
+
+<p>When the GPS receiver solves for position from the pseudoranges, it also 
+solves for its receiver clock bias (typically through a least squares process).  
+Here's what happens:  the ionosphere
+bias in the uncorrected pseudoranges is absorbed into the receiver clock bias
+unknown.  The net result depends on the number of high vs. low satellites.
+But even 45 degree vertical angle satellites have 25% more delay than zenith.
+The resulting solution for the clock bias will undercorrect for the delay 
+in the low satellites, and will overcorrect the delay in the high satellites.
+That is, receiver clock bias corrected ranges from high satellites will 
+appear too short.
+The high satellites have the best geometry for establishing elevation and 
+will dominate the solution.  Thus, the elevation is based on
+receiver clock bias corrected ranges that are too short, and the solution
+is systematically too high.
+
+<p>This can be seen in a "toy" example that illustrates these
+principles.  Below is a 2-D profile, solving for Up and Clock Bias
+from 3 GPS satellites:
+
+<pre>
+                              GPS-2
+
+
+
+
+   GPS-1                                                 GPS-3
+                                X
+====================================================================
+
+</pre>
+
+<p>We measure pseudoranges 1-X, 2-X, and 3-X.  Now, 1-X and 3-X are
+45 meters too long due to ionosphere delay.  2-X is also biased, but
+only at the 15 meter level.  1-X and 3-X can't both be 45 meters too
+long at the same time, so that bias is absorbed in the clock unknown
+to the tune of 45 meters.  That 45 meter clock bias correction is also
+a component of the UP solution from the 2-X range.  While the 1-X and 3-X
+ranges have superb geometry in establishing clock bias, they also have
+terrible geometry in establishing height.  The height is solved from the
+2-X range that is overcorrected by 30 meters.  Point X rises by 30 meters.
+
+<p>This same effect also holds for unmodeled troposphere.  Dry and wet
+troposphere delay also causes code ranges to be measured too long.  The
+effect is about 2.4 meters at zenith.  And the scale factor ranges from
+1 at zenith to over 10 (!) at very low elevations.
+
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link6"><hr>
+<p>Some Error and DOP Plots</a></h4>
+
+This section is dedicated to John Bonde,
+based on his excellent
+questions.  The plots are for May 4, 2001.  The X-axis is
+UTC time in seconds, and the Y-axis is error in meters and HDOP.
+
+<ul>
+  <li><a href="ehor0504.gif">Horizontal Error</a></li>
+  <li><a href="ever0504.gif">Vertical Error</a></li>
+  <li><a href="hdop0504.gif">HDOP</a></li>
+</ul>
+
+Starting at the bottom, the HDOP has an average of 1.20 and
+an RMS of 0.26 for the 2855 data points.  Pretty decent.  There are
+numerous times where the HDOP is 1.0 or less.
+
+<p>An HDOP "spike" of 2.6 occurs at 51631-51661 seconds.
+At these two times horizontal errors are 17.1 and 21.7 meters.
+So, there is an associated spike in horizontal error.   The horizontal
+error (or radial error, if you like) shows tiny vertical jumps 
+at the bottom of the scale that are
+due to the granularity of the NMEA sentences (0.001 arc-minute).  
+
+<p>The vertical errors are not centered about zero, due to the
+<a href="#link5">systematic error</a>
+discussed earlier in this page.  The VDOP values
+have not yet been extracted, but it is a reasonable guess that the
+spikes in the vertical error distributions will correlate with large
+VDOP's.
+
+<p>One other point to make about the vertical errors is that they
+do not <em>look</em> random.  Aside from the spikes, one can see
+gradual drifts, and more rapid oscillations within those drifts.
+This is the time correlation (caused by various systematic errors)
+noted by other investigators.  To reliably average a point, a good
+deal of data is needed, and it should not be averaged over periods
+of DOP "holes".
+
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="linkx"><hr>
+<p>More Daily Results in May 2001 (50%)</a></h4>
+
+This section is just to give an idea of what the 50% limits looks
+like.  Half the data points performed better than the limit, and
+half the data were worse.
+
+<pre>
+	   Accuracy      Precision      Number of
+Day        (H)   (V)     (H)   (V)     30 sec data
+--------------------------------------------------
+May 01     3.9  11.3     3.7   5.4        2863
+May 02     4.3  12.3     4.3   5.7        2871
+May 03     4.0  12.6     3.8   5.4        2872
+May 04     4.1  10.7     4.3   5.4        2855
+May 05     4.1  10.4     4.1   5.4        1501  (1)
+May 06     4.0  10.7     3.8   5.4        2874
+May 07     3.4  10.2     3.4   4.6        2871
+May 08     3.9  10.2     4.0   5.1        2871
+May 09     4.1   8.3     4.1   5.1        2874
+May 10     3.8   6.8     3.6   4.8        2859
+May 11     3.5   7.1     3.6   4.5        1573  (2)
+May 12     3.5   7.0     3.6   4.4        2751  (3)
+May 13     3.8   7.6     3.5   4.7        2873
+May 14     4.0   8.1     3.7   5.0        2873
+May 15     4.0   8.5     3.9   4.8        2875
+May 16     4.0   7.5     4.0   4.6        2874
+May 17     3.5   9.5     3.5   4.8        2874
+May 18     4.0   9.9     3.9   5.0        2847
+May 19     3.9   8.8     3.5   4.5        2870
+May 20     4.0  10.1     4.2   5.5        2857
+May 21     4.1  10.8     4.2   5.1        2829
+May 22     4.1  11.8     4.1   5.3        2873
+May 23     4.0   9.8     3.9   5.4        2847
+May 24     4.0   9.7     3.9   4.7        2873
+May 25     4.0   9.8     3.9   4.7        2841
+May 26     3.9   9.7     3.9   4.9        2874
+May 27     4.0  11.3     3.9   5.0        2794
+May 28     3.8   9.0     3.4   5.3        2881
+May 29     3.8   8.3     3.8   4.6        2876
+May 30     3.9  10.2     4.0   4.8        2876
+May 31     3.8  10.2     3.4   4.9        2874
+
+Note:  units of meters, 50% limits
+       dispersion of single measurements, not of sample means
+
+(1) -- intermittent data dropouts due to software bug
+(2) -- data gap due to neighborhood power failure
+(3) -- data gap due to equipment test
+</pre>
+
+<p>The results above are derived from Garmin 12XL NMEA sentences.
+The horizontal coordinates are only expressed to the nearest
+0.001 arc minute in latitude/longitude.  This works out to about
+1.8 meters (N/S) and 1.4 meters (E/W).  Height is expressed to
+the nearest 0.1 meter.   
+
+<p>There is an apparent increase in performance on May 10-13.
+However, May 11 is a not full data set.  No cause is suggested at 
+this time. 
+
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="linky"><hr>
+<p>Links to Other Pages</a></h4>
+
+<p>The links here are for some other sites that talk about GPS accuracy.
+
+<ul>
+
+<p>Sam Wormley:
+<a href="http://www.edu-observatory.org/gps/gps_accuracy.html">"GPS Errors & Estimating Your Receiver's Accuracy"</a>.
+
+<p>David L. Wilson:
+<a href="http://users.erols.com/dlwilson/gps.htm">"GPS Accuracy Web Page"</a>.
+
+<p>Jack Yeazel:
+<a href="http://www.gpsinformation.net/waas/vista-waas.html">"Vista WAAS On/Off Tests in the Open"</a>.
+
+<!-- ---------------------------------------- missing ---------------------------------------------------------------- -->
+<!-- <p>John Bonde:                                                                                                    -->
+<!-- <a href="http://sparkie.nrri.umn.edu/saoff/intro.html">"Garmin 12-Series Receiver Accuracy Report - Post SA"</a>. -->
+<!-- ---------------------------------------- missing ---------------------------------------------------------------- -->
+
+<p>Wolfgang Rupprecht:
+<a href="http://www.wsrcc.com/wolfgang/gps/accuracy.html">"Post SA GPS Accuracy Measurements"</a>.
+
+<p>Heinrich Pfeifer:
+<a href="http://www.gartrip.de/long.htm">"A long term fix with GPS and GARtrip"</a>.
+
+<!-- ---------------------------------------- missing ------------------------------------------------------ -->
+<!-- <p>Prof. Dr. Arno Schroth:                                                                              -->
+<!-- <a href="http://www.dlr.de/KN/KN-NL">"GPS and GLONASS Monitoring site"</a>. (in German, but nice plots) -->
+<!-- ---------------------------------------- missing ------------------------------------------------------ -->
+
+<p>Tom Chester:
+<a href="http://tchester.org/sgm/analysis/gps/etrex_saved_track_accuracy.html">"Accuracy of Tracks From a Garmin Etrex GPS Receiver"</a>.
+
+<p>National Geodetic Survey, NOAA:
+<a href="http://www.ngs.noaa.gov/FGCS/info/sans_SA/">"Removal Of GPS Selective Availability"</a>.
+
+</ul>
+
+<p>
+<p>Next are PDF reports describing GPS (and WAAS) performance.  Their GPS PAN archive index is incomplete,
+but the reports are present in the "reports" directory.  For example: GPS PAN report #47 can be found at:
+http://www.nstb.tc.faa.gov/reports/pan47_1004.pdf   For the GPS PAN reports, pay particular attention to 
+Figures 5-1 and 5-2.  Also, monitor site behavior is broken out in Table 5-1.  Note that the "Predictable
+Accuracy" values quoted in their Appendix A's are based on the <em>worst</em> monitor site in the quarter.
+
+<ul>
+  <p>Federal Aviation Administration:
+  <a href="http://www.nstb.tc.faa.gov/ArchiveList.html">"Archive list of WAAS PAN Reports and SPS PAN Reports"</a>.
+</ul>
+
+<p>
+<p>This is the "kewlest" site.  Kudos!
+<ul>
+  <p>Professor Antonio Tabernero Galán:
+  <a href="http://artico.lma.fi.upm.es/numerico/miembros/antonio/async/">"Obtaining raw data from some Garmin units"</a>.
+</ul>
+
+<!-- ------------------------------------------------------------------ -->
+<br wp="br1"><br wp="br2"><h4><a name="linkz"><hr>
+<p>To Contact Me</a></h4>
+
+<p>My e-mail user name is the first initial of my first name
+followed by all the letters of my last name (see above).  My ISP is
+"comcast", and it is a "dot-net", not a "dot-com".  Sorry for not spelling
+out my e-mail address, but I try to keep the spam-bots
+from fingering me.  But, just so the spam-bots don't feel left
+out, they can always go to abuse@comcast.net
+
+<!-- ------------------------------------------------------------------ -->
+<br wp="br1"><br wp="br2"><hr>
+
+<p>
+<a href="index.html">Back To Home</a>
+
+</body>
+</html>

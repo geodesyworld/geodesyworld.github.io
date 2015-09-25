@@ -1,0 +1,128 @@
+<html>
+<head>
+<title>Extract Ellipsoidal Coordinates</title>
+</head>
+
+<META NAME="KEYWORDS" CONTENT="GPS, software">
+
+<body background="whitep.gif" text="#000000" link="#0000ff" vlink="#551a8b" alink="#ff0000">
+
+<h2><strong>EXTRACT ELLIPSOIDAL COORDINATES</strong></h2>
+
+<p>Dennis Milbert
+
+<pre>
+Updated:  2-may-02
+</pre>
+
+<!-------     <br wp="br1"><br wp="br2">     ------>
+<p>The program, <em>getgeo</em>, scans some of my older ".lst" files and
+converts the static solution XYZ into ellipsoidal coordinates.
+
+<br wp="br1"><br wp="br2"><h3>Contents</h3>
+
+<ul>
+  <li><a href="#link0">Operation</a></li>
+  <li><a href="#link1">Output File Format</a></li>
+  <li><a href="#link5">Shortcomings</a></li>
+  <li><a href="#linkx">Source Code and Binary Executable</a></li>
+  <li><a href="#linkz">To Contact Me</a></li>
+  <li><a href="index.html">Back To Home</a></li>
+</ul>
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link0"><hr>
+<p>Operation</a></h4>
+
+<p>Program runs in a DOS window, and does not use file names.  It reads
+data from standard input and sends it to standard output.  Use the
+redirection ("<" and ">") symbols to indicate the files.  Example:
+
+<pre>
+   getgeo < ddpr1.lst > ddprpos.txt
+</pre>
+
+<p>The program will then scan the input file, and convert the solution
+XYZ to ellipsoidal.  The GRS80 ellipsoid is used.  (Which can be
+considered equivalent to the WGS84 ellipsoid at the sub-millimeter level.)
+
+<p>One file is generated as output.  It's name is whatever you selected 
+after the ">" redirection symbol.  If you omit the ">", output will be
+sent to your screen.  If you omit the "<", the program will wait forever
+for input.  You can cancel the program by pressing "ctrl" and "c" at the
+same time.
+
+<p>Input File:
+
+<p>The program scans the file for the string, "adjusted point".  If it
+finds it, it treats the next two lines as XYZ, and converts them to
+ellipsoidal coordinates.
+
+<p>This program is built to process ".lst" files from 
+<a href="ddpr1.htm" ><em>ddpr1</em></a>,
+<a href="tdxl.htm" ><em>tdxl</em></a>, and other similar programs.
+
+<p>Output File:
+
+<p>Plain ASCII, geodetic lat/lon (DMS) and ellipsoidal height.
+
+<p>Discussion:
+
+<p>This program was just a quick hack.  I built it so that I could feed
+experimental solutions back into my "pos" files.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link1"><hr>
+<p>Output File Format</a></h4>
+
+<p>The first line is an echo of the line containing "adjusted point".
+
+<p>The format of the ellipsoidal coordinates are:
+
+<pre>
+01-33  blank
+34-35  geodetic latitude, degrees
+36-37     "        "    , minutes
+38-44   "        "    , units of 0.00001 arc-seconds
+45-45  (N/S) -- "N" positive north, "S" positive south
+46-48  geodetic longitude, degrees
+49-50     "         "    , minutes
+51-57     "         "    , units of 0.00001 arc-seconds
+58-58  (W/E) -- "W" positive west, "E" positive east
+59-65  ellipsoidal height, units of millimeters
+</pre>
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link5"><hr>
+<p>Shortcomings</a></h4>
+
+<p>This is "no frills" software.  There are no warranties of any sort.
+No Windows GUI.  Just the core function.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="linkx"><hr>
+<p>Source Code and Binary Executable</a></h4>
+
+<p>The Fortran source code is <a href="getgeo.for.txt">getgeo.for</a>.
+
+<p>The compiled executable (zipped) is <a href="getgeo.zip">getgeo.exe</a>.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="linkz"><hr>
+<p>To Contact Me</a></h4>
+
+<p>My e-mail user name is the first initial of my first name
+followed by all the letters of my last name (see above).  My ISP is
+"comcast", and it is a "dot-net", not a "dot-com".  Sorry for not spelling
+out my e-mail address, but I try to keep the spam-bots
+from fingering me.  But, just so the spam-bots don't feel left
+out, they can always go to abuse@comcast.net
+
+<!-- ------------------------------------------------------------------ -->
+<br wp="br1"><br wp="br2"><hr>
+
+<p>
+<a href="index.html">Back To Home</a>
+
+</body>
+</html>

@@ -1,0 +1,169 @@
+<html>
+<head>
+<title>Garmin GPSmap76L Asynchronous Binary To RINEX</title>
+</head>
+
+<META NAME="KEYWORDS" CONTENT="GPS, software, RINEX, async, Garmin, carrier phase">
+
+<body background="whitep.gif" text="#000000" link="#0000ff" vlink="#551a8b" alink="#ff0000">
+
+<h2><strong>GARMIN GPSMAP76 ASYNCHRONOUS BINARY TO RINEX</strong></h2>
+
+<p>Dennis Milbert
+
+<pre>
+Updated:  2-may-02
+</pre>
+
+<!-------     <br wp="br1"><br wp="br2">     ------>
+<p>This program, <em>g76rin</em>, takes an asynchronous binary file from the 
+<a href="garbin.htm"><em>garbin</em></a>
+logger, and converts the 0x38 message contents into a RINEX file.
+Its binary in, and ASCII (RINEX) out.
+
+<p>This page is dedicated to the work of Professor Antonio Tabernero Galán, who 
+built freeware for 
+<a href="http://artico.lma.fi.upm.es/numerico/miembros/antonio/async/">"obtaining raw data from some Garmin units"</a>.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h3>Contents</h3>
+
+<ul>
+  <li><a href="#link0">Operation</a></li>
+  <li><a href="#link1">Asynchronous Binary</a></li>
+  <li><a href="#link2">RINEX Format</a></li>
+  <li><a href="#link5">Shortcomings</a></li>
+  <li><a href="#linkx">Source Code and Binary Executable</a></li>
+  <li><a href="#linky">Links to Other Pages</a></li>
+  <li><a href="#linkz">To Contact Me</a></li>
+  <li><a href="index.html">Back To Home</a></li>
+</ul>
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link0"><hr>
+<p>Operation</a></h4>
+
+<p>The program operates in the DOS window.  Alternatively, you can simply
+run "g76rin.exe" with a double click or with "Run..." in your "Start" menu.
+(I use the DOS window myself.)
+
+<p>One file is needed for input.  One file is generated as output.  
+The names are fixed.  The files must be in the subdirectory where you are
+working.  The program will also ask you for the GPS week #.  This is
+necessary, because the 0x38 messages do not contain the GPS week.
+
+<p>Input File:
+
+<p><em>garbin.bin</em> -- Binary format.  This is the asynchronous binary file from the 
+<a href="garbin.htm"><em>garbin</em></a>
+logger.  This file includes the full binary output, including
+Garmin binary protocol headers and trailers, "stuffed" DLE's, and checksums.
+An example GPSmap76 async file is <a href="garbin.76.bin"><em>garbin.bin</em></a>.
+
+<p>Output File:
+
+<p><em>gmap76.rnx</em> -- ASCII, RINEX format.  A RINEX observation file 
+containing the pseudorange and carrier phase information in the 0x38 messages.
+A generic header is also constructed -- edit those elements you wish to
+change (like station ID and approximate position).
+An example converted GPSmap76 RINEX is <a href="gmap76.rnx.txt"><em>gmap76.rnx</em></a>.
+
+<p>Discussion:
+
+<p>The program decimates the input data into one epoch per 5 seconds.
+Also, it corrects for the sizable GPS receiver clock drift using the fractional
+part of the timestamp.
+
+<p>The carrier phase is subject to occasional half-wavelength (L1) cycle slips.
+These are most evident if you log a slug of data, process it with
+<a href="tdxl.htm"><em>tdxl</em></a>,
+and plot the <em>tdxl.res</em> residual file.
+Still, it is great fun.  It's so interesting to
+see carrier phase.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link1"><hr>
+<p>Asynchronous Binary</a></h4>
+
+<p>This program interprets undocumented and unsupported messages (0x38, in particular). 
+These were only created for testing purposes and could be discontinued.
+This program is supplied as is.  No warranty is given or implied.  
+Use at your own risk.  Garmin is a registered trademark of Garmin Corporation.
+
+<p>Here is the basic
+<a href="http://www.garmin.com/support/commProtocol.html">Garmin communication protocol document</a>.
+The asynchronous messages are encased by this protocol.  For more information on 
+the asynchronous messages, I can highly recommend 
+<a href="http://artico.lma.fi.upm.es/numerico/miembros/antonio/async/">"obtaining raw data from some Garmin units"</a>.
+The 0x38 message seems to contain pseudorange, full and fractional
+carrier phase, signal strength, and timestamp.  But, of course, no guarantee, since
+the messages are undocumented.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link2"><hr>
+<p>RINEX Format</a></h4>
+
+<p>The RINEX version 2.10 format (25jan2002) can be obtained from the 
+<a href="http://igscb.jpl.nasa.gov/newformats.html">International GPS Service</a>
+and the 8jun2001 version from the
+<a href="http://www.ngs.noaa.gov/CORS/rinex210.txt">National Geodetic Survey</a>.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link5"><hr>
+<p>Shortcomings</a></h4>
+
+<p>This is "no frills" software.  There are no warranties of any sort.
+No Windows GUI.  Just the core function.
+
+<p>You must have the input file with the name <em>garbin.bin</em>.  The program will
+overwrite any existing "gmap76.rnx" file in the working directory.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="linkx"><hr>
+<p>Source Code and Binary Executable</a></h4>
+
+<p>The Fortran source code is <a href="g76rin.for.txt">g76rin.for</a>.
+
+<p>The compiled executable (zipped) is <a href="g76rin.zip">g76rin.exe</a>.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="linky"><hr>
+<p>Links to Other Pages</a></h4>
+
+<p>This is the "kewlest" site.  Salute!
+<ul>
+  <p>Professor Antonio Tabernero Galán:
+  <a href="http://artico.lma.fi.upm.es/numerico/miembros/antonio/async/">"Obtaining raw data from some Garmin units"</a>.
+</ul>
+
+<p>These are other softwares for async binary logging and translation.
+<ul>
+  <p>Michal Hobot:
+  <a href="http://www.mhobot.w.pl/java/gar2rnx">"gar2rnx in Java"</a>.
+
+  <p>Chris O'Byrne:
+  <a href="http://www.chris.obyrne.com/Psion/index.html#GarRec">"GarRec"</a>.
+
+  <p>IESSG:
+  <a href="http://www.nottingham.ac.uk/iessg/gringo/">"Gringo"</a>.
+</ul>
+
+<!-- ------------------------------------------------------------------ -->
+<br wp="br1"><br wp="br2"><h4><a name="linkz"><hr>
+<p>To Contact Me</a></h4>
+
+<p>My e-mail user name is the first initial of my first name
+followed by all the letters of my last name (see above).  My ISP is
+"comcast", and it is a "dot-net", not a "dot-com".  Sorry for not spelling
+out my e-mail address, but I try to keep the spam-bots
+from fingering me.  But, just so the spam-bots don't feel left
+out, they can always go to abuse@comcast.net
+
+<!-- ------------------------------------------------------------------ -->
+<br wp="br1"><br wp="br2"><hr>
+
+<p>
+<a href="index.html">Back To Home</a>
+
+</body>
+</html>

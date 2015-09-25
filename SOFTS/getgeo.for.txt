@@ -1,0 +1,189 @@
+      program getgeo
+
+*** compute geodetic lat, lon, eht from xyz from my programs
+
+      implicit double precision(a-h,o-z)
+      logical frmxyz
+      character*80 card
+      character*1 adir1,adir2
+      common/const/pi,pi2,rad
+      common/opt/a,e2
+
+      pi2=2.d0*datan(1.d0)
+      pi=pi2+pi2
+      rad=180.d0/pi
+
+*** grs-80 ellipsoid  (geod.hand. 66(2), 1992, pg. 191)
+
+      a =6378137.d0
+      e2= 0.0066943800229d0
+
+*** scan .lst file for string -- translate next two records
+
+  100 read(*,'(a)',end=777) card
+      if(index(card,'adjusted point').gt.0) then
+        write(*,'(a)') card
+        read(*,*) x,y,z
+
+        if(.not.frmxyz(x,y,z,glat,glon,eht)) then
+          write(*,*) 'error in frmxyz()'
+          stop 666
+        endif
+        gla=rad*glat
+        glo=rad*glon
+        if(glo.lt.0.d0) glo=glo+360.d0
+
+        call todmsp(glat,id1,im1,s1,isign)
+        if(isign.gt.0) then
+          adir1='N'
+        else
+          adir1='S'
+        endif
+        call todmsp(glon,id2,im2,s2,isign)
+        if(isign.gt.0) then
+          adir2='E'
+        else
+          adir2='W'
+        endif
+ 
+        is1=idnint(s1*1.d5)
+        is2=idnint(s2*1.d5)
+        ieht=idnint(eht*1.d3)
+ 
+        write(*,1) id1,im1,is1,adir1,id2,im2,is2,adir2,ieht
+    1   format(34x,i2.2,i2.2,i7.7,a1,i3.3,i2.2,i7.7,a1,i7.3)
+
+*** do it again
+
+        read(*,*) x,y,z
+
+        if(.not.frmxyz(x,y,z,glat,glon,eht)) then
+          write(*,*) 'error in frmxyz()'
+          stop 666
+        endif
+        gla=rad*glat
+        glo=rad*glon
+        if(glo.lt.0.d0) glo=glo+360.d0
+
+        call todmsp(glat,id1,im1,s1,isign)
+        if(isign.gt.0) then
+          adir1='N'
+        else
+          adir1='S'
+        endif
+        call todmsp(glon,id2,im2,s2,isign)
+        if(isign.gt.0) then
+          adir2='E'
+        else
+          adir2='W'
+        endif
+ 
+        is1=idnint(s1*1.d5)
+        is2=idnint(s2*1.d5)
+        ieht=idnint(eht*1.d3)
+ 
+        write(*,1) id1,im1,is1,adir1,id2,im2,is2,adir2,ieht
+      endif
+
+      go to 100
+
+  777 continue
+
+      end
+      logical function frmxyz(x,y,z,glat,glon,eht)
+  
+*** convert x,y,z into geodetic lat, lon, and ellip. ht
+*** ref: eq a.4b, p. 132, appendix a, osu #370
+*** ref: geom geod notes gs 658, rapp
+  
+      implicit double precision(a-h,o-z)
+      parameter(maxint=10,tol=1.d-14)
+      common/opt/a,e2
+  
+      ae2=a*e2
+  
+*** compute initial estimate of reduced latitude  (eht=0)
+  
+      p=dsqrt(x*x+y*y)
+      icount=0
+      tgla=z/p/(1.d0-e2)
+  
+*** iterate to convergence, or to max # iterations
+  
+    1 if(icount.le.maxint) then
+        tglax=tgla
+        tgla=z/(p-(ae2/dsqrt(1.d0+(1.d0-e2)*tgla*tgla)))
+        icount=icount+1
+        if(dabs(tgla-tglax).gt.tol) go to 1
+  
+*** convergence achieved
+  
+        frmxyz=.true.
+        glat=datan(tgla)
+        slat=dsin(glat)
+        clat=dcos(glat)
+        glon=datan2(y,x)
+        w=dsqrt(1.d0-e2*slat*slat)
+        en=a/w
+        if(dabs(glat).le.0.7854d0) then
+          eht=p/clat-en
+        else
+          eht=z/slat-en+e2*en
+        endif
+        glon=datan2(y,x)
+  
+*** too many iterations
+  
+      else
+        frmxyz=.false.
+        glat=0.d0
+        glon=0.d0
+        eht=0.d0
+      endif
+  
+      return
+      end
+      subroutine todmsp(val,id,im,s,isign)
+ 
+*** convert position radians to deg,min,sec
+*** range is [-pi to +pi]
+ 
+      implicit double precision(a-h,o-z)
+      common/const/pi,pi2,rad
+ 
+    1 if(val.gt.pi) then
+        val=val-pi-pi
+        go to 1
+      endif
+ 
+    2 if(val.lt.-pi) then
+        val=val+pi+pi
+        go to 2
+      endif
+ 
+      if(val.lt.0.d0) then
+        isign=-1
+      else
+        isign=+1
+      endif
+ 
+      s=dabs(val*rad)
+      id=idint(s)
+      s=(s-id)*60.d0
+      im=idint(s)
+      s=(s-im)*60.d0
+ 
+*** account for rounding error
+ 
+      is=idnint(s*1.d5)
+      if(is.ge.6000000) then
+        s=0.d0
+        im=im+1
+      endif
+      if(im.ge.60) then
+        im=0
+        id=id+1
+      endif
+ 
+      return
+      end

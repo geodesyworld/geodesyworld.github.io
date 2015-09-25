@@ -1,0 +1,594 @@
+      program g76rin
+
+*** convert garmin gpsmap 76 log file into rinex
+
+      implicit double precision(a-h,o-z)
+      character*6 verdat
+      logical unstuf,cksum
+      byte b1,b2,b3,b4,b5,b6,buff(255+4),bx,bid,blen
+
+      byte DLE,ETX
+      parameter(DLE = z'10')
+      parameter(ETX = z'03')
+
+      logical lhdr
+      save  /misc/
+      common/misc/lrnx,igwk,lhdr
+
+*** version date
+
+      verdat='020209'
+
+      lin=1
+      lrnx=2
+      open(lin, file='garbin.bin',form='binary',status='old')
+      open(lrnx,file='gmap76.rnx',form='formatted',status='unknown')
+
+    1 write(*,'(a$)') ' GPS week = '
+      read(*,*,err=1) igwk
+      if(igwk.le.0) go to 1
+
+      call rinini
+      call rinhdr(verdat)
+
+*** loop over messages until eof
+
+*****  byte       desc.     DLE stuff.   chksum
+*****  ------------------------------------------
+*****  1          DLE
+*****  2          messid                    y
+*****  3          meslen       y            y
+*****  4 to n-3   data         y            y
+*****  n-2        checksum     y
+*****  n-1        DLE
+*****  n          ETX
+*****  ------------------------------------------
+*****  extra DLE's not included in size/checksums
+
+  100 read(lin,end=777) b1,b2,b3,b4
+   20 read(lin,end=777) b5
+      if(b1.ne.DLE.or.b2.ne.ETX.or.b3.ne.DLE) then
+        b1=b2
+        b2=b3
+        b3=b4
+        b4=b5
+        go to 20
+      endif
+      bid   =b4
+      blen  =b5
+      if(.not.unstuf(blen,lin,bx)) then
+        if(bx.eq.ETX) then
+          b1=blen
+          b2=bx
+          read(lin,end=777) b3,b4
+          go to 20
+        endif
+      endif
+
+*** data packet  (ignore length -- look for DLE combo)
+
+  200 read(lin,end=777) buff(1)
+      read(lin,end=777) buff(2)
+      do 30 i=3,255
+        read(lin,end=777) buff(i)
+        if(buff(i-2).ne.DLE) go to 30
+        if(buff(i-1).ne.ETX) go to 30
+        if(buff(i  ).ne.DLE) go to 30
+*** found a message separator  (lbuf includes checksum)
+*** transfer bytes for next scanning sequence
+        lbuf=i-3
+        b1=buff(i-2)
+        b2=buff(i-1)
+        b3=buff(i  )
+        read(lin,end=777) b4
+        if(bid.eq.z'38') go to 300
+        go to 20
+   30 continue
+      go to 100
+
+*** found a 38 message
+
+  300 lbuf2=lbuf
+      do 333 i=1,lbuf2-1
+        if(buff(i).eq.DLE.and.buff(i+1).eq.DLE) then
+          do 444 j=i+1,lbuf2-1
+            buff(j)=buff(j+1)
+  444     continue
+          lbuf=lbuf-1
+          go to 300
+        endif
+  333 continue
+
+      if(lbuf.ge.37) then
+        if(lbuf.eq.41) then
+          if(cksum(bid,blen,buff,lbuf)) call do38(buff)
+*****     call do38(buff)
+        else
+*** short message -- skip checksum and supress the pseudo-"prn 1"
+          if(buff(37).ne.0) call do38(buff)
+        endif
+      endif
+      go to 20
+***
+*** end of file encountered
+***
+
+  777 call dumprb
+
+      end
+      logical function cksum(bid,blen,buf,lbuf)
+
+*** checksum on Garmin protocol buffer (after dle unstuffing)
+
+      byte bid,blen,buf(*),csum
+
+      csum = bid+blen
+      do 100 i=1,lbuf-1
+  100 csum=csum+buf(i)
+      csum=not(csum)+1
+      if(csum.eq.buf(lbuf)) then
+        cksum=.true.
+      else
+        cksum=.false.
+      endif
+
+      return
+      end
+      logical function unstuf(b,lin,b2)
+
+*** unstuff dle stuffing
+
+      byte DLE,b,b2
+      parameter(DLE = z'10')
+
+      if(b.eq.DLE) then
+        read(lin,end=777) b2
+        if(b2.ne.DLE) then
+          unstuf=.false.
+          return
+        endif
+      endif
+      unstuf=.true.
+      return
+
+  777 stop 98765
+      end
+***********************************************************************
+      subroutine do38(buff)
+
+*** process message 38 (measurement data block)
+
+      implicit double precision(a-h,o-z)
+      parameter(maxsat=12,iepflg=0)
+      parameter(maxprn=32)
+      parameter(sol= 299792458.d0)
+      parameter(F1 = 1575.42d6)
+      dimension iprns(maxsat),phases(maxsat),ll1s(maxsat),
+     *          isnrs(maxsat),prs(maxsat)
+      logical dec5,lstlok,oppsgn
+      integer getQcode
+      byte    buff(*)
+
+      real*8    pr
+      real*8    tow
+      integer*4 phscnt
+      byte      tbyte
+      byte      b1,b2,b3
+      integer*4 intphs
+      integer*4 c511500
+      integer*2 deltaf
+      integer*2 isigq
+      byte      bp
+
+      real*8     ba2dbl
+      integer*4  ba2int
+      integer*2  ba2in2
+
+      pr      = ba2dbl(buff( 1))
+      tow     = ba2dbl(buff( 9))
+      phscnt  = ba2int(buff(17))
+      tbyte   =        buff(21)
+*** skip bytes 22-24
+      intphs  = ba2int(buff(25))
+      c511500 = ba2int(buff(29))
+      deltaf  = ba2in2(buff(33))
+      isigq   = ba2in2(buff(35))
+      bp      =        buff(37)
+*** 5 second interval
+      if(mod(idnint(tow),5).ne.0) return
+
+      iprn   = mybyte(bp)+1
+      icfrac = iand(phscnt,2#00000000000000000000011111111111)
+      phase  = dble(intphs) + icfrac/2048.d0
+      isnr   = getQcode(isigq)
+
+*** From RINEX document:
+***  Time(corr)  = Time(r)  -  dT(r)
+***  PR(corr)    =  PR(r)   -  dT(r)*c
+***  phase(corr) = phase(r) -  dT(r)*freq
+
+      dt     = tow   - idnint(tow)
+      tow    = tow   - dt
+      pr     = pr    - dt*sol
+      phase  = phase - dt*F1
+
+*** check tracking and status
+
+      if(tbyte.eq.0)                return
+      if(iprn .le.0)                return
+      if(iprn .gt.maxprn)           return
+      if(tow  .le.1.d-9)            return
+***** if(tow  .gt.1604801.d0)       return
+      if(phase.le.-999999999.999d0) return
+      if(phase.gt.9999999999.999d0) return
+***** if(isigq.le.0)                return
+      call putrin(tow,iprn,pr,phase,isnr)
+
+      return
+
+*** end of file encountered
+ 
+  777 stop 
+      end
+***********************************************************************
+      double precision function ba2dbl(b)
+
+*** convert byte array to double
+
+      byte b(*),ba(8)
+      double precision db
+      equivalence(ba,db)
+
+      ba(1)=b(1)
+      ba(2)=b(2)
+      ba(3)=b(3)
+      ba(4)=b(4)
+      ba(5)=b(5)
+      ba(6)=b(6)
+      ba(7)=b(7)
+      ba(8)=b(8)
+      ba2dbl=db
+
+      return
+      end
+      integer function ba2int(b)
+
+*** convert byte array to integer
+
+      byte b(*),ba(4)
+      integer in
+      equivalence(ba,in)
+
+      ba(1)=b(1)
+      ba(2)=b(2)
+      ba(3)=b(3)
+      ba(4)=b(4)
+      ba2int=in
+
+      return
+      end
+      integer*2 function ba2in2(b)
+
+*** convert byte array to short
+
+      byte b(*),ba(2)
+      integer*2 in2
+      equivalence(ba,in2)
+
+      ba(1)=b(1)
+      ba(2)=b(2)
+      ba2in2=in2
+
+      return
+      end
+      integer function mybyte(b)
+
+*** convert byte to integer
+
+      byte b
+
+      if(b.lt.0) then
+        mybyte=b+256
+      else
+        mybyte=b
+      endif
+      return
+      end
+***********************************************************************
+      integer function getQcode(sgn)
+
+*** convert internal signal strength to standardized value
+***  note: static method -- use for all instances
+
+      integer*2 sgn
+
+      if    (sgn.ge.9000) then
+        getQcode=9
+        return
+      elseif(sgn.ge.6000) then
+        getQcode=8
+        return
+      elseif(sgn.ge.4000) then
+        getQcode=7
+        return
+      elseif(sgn.ge.2500) then
+        getQcode=6
+        return
+      endif
+      getQcode=5
+
+      return
+      end
+      subroutine rinhdr(verdat)
+
+*** rinex header
+
+      implicit double precision(a-h,o-z)
+      character*6 verdat
+      integer*2 iyr2,imo2,idy2,ihr2,imn2,isc2,ish2
+      logical lhdr
+      save  /misc/
+      common/misc/lrn,igwk,lhdr
+
+      call getdat(iyr2,imo2,idy2)
+      call gettim(ihr2,imn2,isc2,ish2)
+
+      write(lrn,'(a,a)')
+     * '     2.10           OBSERVATION DATA    G (GPS)             ',
+     * 'RINEX VERSION / TYPE'
+
+      write(lrn,'(a,a,a,i4,2i2.2,i3.2,a,i2.2,a,i2.2  ,a,a)')
+     * 'g76rin   ',verdat,'     your name here      ',
+     *  iyr2,imo2,idy2,ihr2,':',imn2,':',isc2,'ET ',
+     * 'PGM / RUN BY / DATE'
+
+      write(lrn,'(a,a)')
+     * 'XXXX                                                        ',
+     * 'MARKER NAME'
+
+      write(lrn,'(a,a)')
+     * '0002                                                        ',
+     * 'MARKER NUMBER'
+
+      write(lrn,'(a,a)')
+     * 'your name here      <private>                               ',
+     * 'OBSERVER / AGENCY'
+
+      write(lrn,'(a,a)')
+     * 'nnnnnnnn            GARMIN GPSmap 76    2.08                ',
+     * 'REC # / TYPE / VERS'
+
+      write(lrn,'(a,a)')
+     * 'GARMIN GPSmap 76    Internal Antenna                        ',
+     * 'ANT # / TYPE'
+
+      write(lrn,'(a,a)')
+     * '  1095790.2358 -4831326.5883  4003934.2615                  ',
+     * 'APPROX POSITION XYZ'
+
+      write(lrn,'(a,a)')
+     * '        0.0000        0.0000        0.0000                  ',
+     * 'ANTENNA: DELTA H/E/N'
+
+      write(lrn,'(a,a)')
+     * '     2     0                                                ',
+     * 'WAVELENGTH FACT L1/2'
+
+      write(lrn,'(a,a)')
+     * '     2    C1    L1                                          ',
+     * '# / TYPES OF OBSERV'
+
+      write(lrn,'(a,a)')
+     * '     5.0000                                                 ',
+     * 'INTERVAL'
+
+      write(lrn,'(a,a)')
+     * 'Forced Modulo Decimation to 5 seconds                       ',
+     * 'COMMENT'
+
+      write(lrn,'(a,a)')
+     * ' SNR is mapped to RINEX snr flag value [1-9]                ',
+     * 'COMMENT'
+
+*** enable header writing second part
+
+      lhdr=.true.
+
+      return
+      end
+      subroutine rinhd2(towx)
+
+*** rinex header
+
+      implicit double precision(a-h,o-z)
+      logical lhdr
+      save  /misc/
+      common/misc/lrnx,igwkx,lhdr
+
+      igwk=igwkx
+      tow =towx
+      call sowciv(igwk,tow,iyr,imo,idy,ihr,imn,sec)
+
+      write(lrnx,'(5i6.2,f13.7,a,a)')
+     *  iyr,imo,idy,ihr,imn,sec,'     GPS         ',
+     * 'TIME OF FIRST OBS'
+
+      write(lrnx,'(a,a)')
+     * '                                                            ',
+     * 'END OF HEADER'
+
+*** disable any more header writing
+
+      lhdr=.false.
+
+      return
+      end
+***********************************************************************
+*** rinex data buffer
+***
+      subroutine rinini
+
+*** initialize rinex buffer
+
+      implicit double precision(a-h,o-z)
+      parameter(mst=12,maxprn=32)
+      save  /rinbuf/
+      common/rinbuf/prs(mst),phss(mst),iprns(mst),isnrs(mst),tow,nsat
+
+      nsat=0
+      tow=-1.d0
+
+      return
+      end
+      subroutine putrin(towx,iprn,pr,phs,isnr)
+
+*** put rinex data into buffer  (support for rinex epoch header)
+
+      implicit double precision(a-h,o-z)
+      logical dupprn
+      parameter(mst=12)
+      parameter(ttol=0.001)       !*** tolerance (sec.) for tow control
+      save  /rinbuf/
+      common/rinbuf/prs(mst),phss(mst),iprns(mst),isnrs(mst),tow,nsat
+      logical lhdr
+      save  /misc/
+      common/misc/lrnx,igwkx,lhdr
+
+*** dump if new tow -- else just load
+
+      if(dabs(tow-towx).ge.ttol) then
+        if(tow.ge.0.d0) then
+          call dumprb
+        else
+          if(lhdr) call rinhd2(towx)
+        endif
+        tow=towx
+        nsat=1
+        prs(nsat)  =pr
+        phss(nsat) =phs
+        iprns(nsat)=iprn
+        isnrs(nsat)=isnr
+
+*** increment and load buffer
+
+      else
+        if(nsat.lt.mst) then
+          if(.not.dupprn(iprn)) then
+            nsat=nsat+1
+            prs(nsat)  =pr
+            phss(nsat) =phs
+            iprns(nsat)=iprn
+            isnrs(nsat)=isnr
+          endif
+        else
+          write(*,*) 'rinex buffer overflow'
+          stop 23843
+        endif
+      endif
+
+      return
+      end
+      logical function dupprn(iprn)
+
+*** test for duplicate prn in one epoch
+
+      implicit double precision(a-h,o-z)
+      parameter(mst=12,maxprn=32)
+      save  /rinbuf/
+      common/rinbuf/prs(mst),phss(mst),iprns(mst),isnrs(mst),tow,nsat
+
+      do 1 i=1,nsat
+        if(iprn.eq.iprns(i)) then
+          dupprn=.true.
+          return
+        endif
+    1 continue
+      dupprn=.false.
+
+      return
+      end
+      subroutine dumprb
+
+*** dump the rinex buffer
+
+      implicit double precision(a-h,o-z)
+      parameter(mst=12)
+      save  /rinbuf/
+      common/rinbuf/prs(mst),phss(mst),iprns(mst),isnrs(mst),towx,nsat
+      save  /misc/
+      common/misc/lrnx,igwkx
+
+*** epoch header first
+
+      igwk=igwkx
+      tow =towx
+      call sowciv(igwk,tow+4.d-8,iyr,imo,idy,ihr,imn,sec)
+      if(iyr.gt.1999) then                             !*** y2k
+        iyr=iyr-2000
+      else
+        iyr=iyr-1900
+      endif
+
+      write(lrnx,1) iyr,imo,idy,ihr,imn,sec,nsat,(iprns(i),i=1,nsat)
+    1 format(5i3,f11.7,'  0',i3,12('G',i2))
+
+*** first pseudorange, then phase
+
+      do 10 i=1,nsat
+   10 write(lrnx,2) prs(i),isnrs(i),phss(i),isnrs(i)
+    2 format(5(f14.3,' ',i1))
+
+      return
+      end
+***********************************************************************
+      subroutine sowciv(igwk,sow,iyr,imo,idy,ihr,imn,sec)
+
+*** convert gps week/seconds of week to civil
+
+      implicit double precision(a-h,o-z)
+      parameter(mjd6jan80=44244)
+
+*** fmjdg computation preserves digits
+
+      mjd  = igwk*7 + sow/86400.d0 + mjd6jan80
+      fmjd = dmod(sow,86400.d0)/86400.d0
+      call mjdciv(mjd,fmjd,iyr,imo,idy,ihr,imn,sec)
+
+      return
+      end
+      subroutine mjdciv(mjd,fmjd,iyr,imo,idy,ihr,imn,sec)
+
+*** convert modified julian date to civil date
+
+*** imo in range 1-12, idy in range 1-31
+*** only valid in range mar-1900 thru feb-2100
+*** ref: hofmann-wellenhof, 2nd ed., pg 34-35
+*** operation confirmed for leap years (incl. year 2000)
+
+      implicit double precision(a-h,o-z)
+
+      rjd=mjd+fmjd+2400000.5d0
+      ia=(rjd+0.5d0)
+      ib=ia+1537
+      ic=(ib-122.1d0)/365.25d0
+      id=365.25d0*ic
+      ie=(ib-id)/30.6001d0
+
+*** the fractional part of a julian day is fractional mjd + 0.5
+*** therefore, fractional part of julian day + 0.5 is fractional mjd
+
+      it1=ie*30.6001d0
+      idy=ib-id-it1+fmjd
+      it2=ie/14.d0
+      imo=ie-1-12*it2
+      it3=(7+imo)/10.d0
+      iyr=ic-4715-it3
+
+      tmp=fmjd*24.d0
+      ihr=tmp
+      tmp=(tmp-ihr)*60.d0
+      imn=tmp
+      sec=(tmp-imn)*60.d0
+
+      return
+      end

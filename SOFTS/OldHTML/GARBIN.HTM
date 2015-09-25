@@ -1,0 +1,208 @@
+<html>
+<head>
+<title>Log Garmin Asynchronous Binary</title>
+</head>
+
+<META NAME="KEYWORDS" CONTENT="GPS, software, async, Garmin, carrier phase, RS232">
+
+<body background="whitep.gif" text="#000000" link="#0000ff" vlink="#551a8b" alink="#ff0000">
+
+<h2><strong>LOG GARMIN ASYNCHRONOUS BINARY</strong></h2>
+
+<p>Dennis Milbert
+
+<pre>
+Updated:  2-may-02
+</pre>
+
+<!-------     <br wp="br1"><br wp="br2">     ------>
+<p>The program, <em>garbin</em>, will tell a 12XL or a GPSmap76 to send asynchronous 
+binary, and then collect the output through your PC serial port, COM1, into a file.
+
+<p>DISCLAIMER:
+This program uses undocumented and unsupported commands.
+This may cause loss of data stored in your GPS receiver.
+The official policy of Garmin is to discourage the use of undocumented commands. 
+These were only created for testing purposes and could be discontinued.
+This program is supplied as is.  No warranty is given or implied.  
+Use at your own risk.  Garmin is a registered trademark of Garmin Corporation.
+(this disclaimer is an amalgam of other software disclaimers -- see links)
+
+<p>This page is dedicated to the work of Professor Antonio Tabernero Galán, who 
+built freeware for 
+<a href="http://artico.lma.fi.upm.es/numerico/miembros/antonio/async/">"obtaining raw data from some Garmin units"</a>.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h3>Contents</h3>
+
+<ul>
+  <li><a href="#link0">Operation</a></li>
+  <li><a href="#link1">Asynchronous Binary Format</a></li>
+  <li><a href="#link4">Error Messages</a></li>
+  <li><a href="#link5">Shortcomings</a></li>
+  <li><a href="#linkx">Source Code and Binary Executable</a></li>
+  <li><a href="#linky">Links to Other Pages</a></li>
+  <li><a href="#linkz">To Contact Me</a></li>
+  <li><a href="index.html">Back To Home</a></li>
+</ul>
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link0"><hr>
+<p>Operation</a></h4>
+
+<p>The program operates in the DOS window.  It takes one argument.  The
+argument is an integer -- the number of seconds to log data.  If the 
+argument is missing, it will log for 5 seconds and then stop.
+
+<pre>
+> garbin 3600          < =====  log data for one hour
+</pre>
+
+<p>One file is generated as output.  It's name is <em>garbin.bin</em>.
+The file will be in the subdirectory where you are working.
+
+<p>Input:
+
+<p>A serial cable from the handheld to the COM1 serial port on your PC.
+
+<p>Be really, really sure that your handheld is set to transmit/receive GARMIN, 9600 baud.
+
+<p>Output File:
+
+<p><em>garbin.bin</em> -- asynchronous binary format.
+
+<p>Discussion:
+
+<p>First, the program sets up the serial port (COM1).  Then it transmits an
+initialization message to the Garmin to begin the asynchronous binary
+stream.  The initialization message is not documented nor supported by Garmin.
+There is no guarantee that the initialization message will not cause your handheld 
+to permanently fail.  For what it's worth, I have personally used this program
+with a Garmin GPS 12XL (ver 4.57) and a Garmin GPSmap76 (ver 2.08).  And, based on 
+the work of Professor Galán, I think it would work with an eTrex.  But, no
+guarantees.
+
+<p>The program counts the number of seconds it has been logging.  
+To stop the program before it would normally finish, press
+"ctrl" and "c" at the same time.  The communication parameters are
+COM1 port, 9600 baud, 8 data bits, parity-none, 1 stop bit.  These can
+be easily changed in the source code.
+
+<p>Once you've logged this mass of binary, you'll need to convert it into
+RINEX.  If you are logging a 12XL, use <a href="g12rin.htm"><em>g12rin</em></a>.  
+If you are logging a GPSmap76 (or an eTrex, I think), use 
+<a href="g76rin.htm"><em>g76rin</em></a>.  The formats of the 0x38 message
+are different, so choose the right program.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link1"><hr>
+<p>Asynchronous Binary Format</a></h4>
+
+<p>This program differs from Professor Galán's <em>async</em> in that 
+<em>garbin</em> logs <em>everything</em> -- every single bit.  It saves the 
+Garmin binary protocol headers and trailers.  It saves the "stuffed" DLE's.
+It saves the checksums. Everything.
+
+<p>I do this because of the behavior of the Garmin GPSmap76.  It writes 
+a number of ill-formed packets, some recoverable, some not.  To work out
+a robust method of dealing with the "informal" GPSmap76 output, everything 
+had to be logged.  (But, hey, that's all right -- no guarantees.)
+
+<p>Here is the basic
+<a href="http://www.garmin.com/support/commProtocol.html">Garmin communication protocol document</a>.
+The asynchronous messages are encased by this protocol.  But, they are sent
+in a continuous stream once they are activated, instead of by handshakes.
+The asynchronous messages, themselves, are not documented or supported
+by Garmin.  For more information on the asynchronous messages, I can
+highly recommend 
+<a href="http://artico.lma.fi.upm.es/numerico/miembros/antonio/async/">"obtaining raw data from some Garmin units"</a>.
+The messages, 0x38 in particular, seem to contain pseudorange, full and fractional
+carrier phase, signal strength, and timestamp.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link4"><hr>
+<p>Error Messages</a></h4>
+
+<p>stop 10001 -- could not get COM1 port
+
+<p>stop 10002 -- could not cancel any I/O in progress thru COM1
+
+<p>stop 10003 -- could not set COM1 to 9600 baud, 8-N-1
+
+<p>stop 10004 -- reserved
+
+<p>stop 10005 -- could not set timeout for COM1
+
+<p>stop 10006 -- could not write initialization message to COM1
+
+<p>stop 10007 -- could not read asynchronous data from COM1
+
+<p>stop 10008 -- could not release COM1 port
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link5"><hr>
+<p>Shortcomings</a></h4>
+
+<p>This is "no frills" software.  There are no warranties of any sort.
+No Windows GUI.  Just the core function.
+
+<p>The program will overwrite any existing "garbin.bin" file in the working directory.
+
+<p>The program runs until the timer expires --
+premature stopping with a "ctrl-c" is not elegant.  And, the comm parameters are
+hardwired.  It would be nice if the program could log directly into a
+RINEX format.  It's on my list of things to do (so much fun, so little time).
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="linkx"><hr>
+<p>Source Code and Binary Executable</a></h4>
+
+<p>The Fortran source code is <a href="garbin.for.txt">garbin.for</a>.
+This uses a Compaq Fortran package for serial communications called "SPORT"
+(SPORT = Serial PORT; kewl).  If you use some other flavor of Fortran, the
+SPORT calls will have to be converted to some other RS232 function.
+
+<p>The compiled executable (zipped) is <a href="garbin.zip">garbin.exe</a>.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="linky"><hr>
+<p>Links to Other Pages</a></h4>
+
+<p>This is the "kewlest" site.  Salute!
+<ul>
+  <p>Professor Antonio Tabernero Galán:
+  <a href="http://artico.lma.fi.upm.es/numerico/miembros/antonio/async/">"Obtaining raw data from some Garmin units"</a>.
+</ul>
+
+<p>These are other softwares for async binary logging and translation.
+<ul>
+  <p>Michal Hobot:
+  <a href="http://www.mhobot.w.pl/java/gar2rnx">"gar2rnx in Java"</a>.
+
+  <p>Chris O'Byrne:
+  <a href="http://www.chris.obyrne.com/Psion/index.html#GarRec">"GarRec"</a>.
+
+  <p>IESSG:
+  <a href="http://www.nottingham.ac.uk/iessg/gringo/">"Gringo"</a>.
+</ul>
+
+<!-- ------------------------------------------------------------------ -->
+<br wp="br1"><br wp="br2"><h4><a name="linkz"><hr>
+<p>To Contact Me</a></h4>
+
+<p>My e-mail user name is the first initial of my first name
+followed by all the letters of my last name (see above).  My ISP is
+"comcast", and it is a "dot-net", not a "dot-com".  Sorry for not spelling
+out my e-mail address, but I try to keep the spam-bots
+from fingering me.  But, just so the spam-bots don't feel left
+out, they can always go to abuse@comcast.net
+
+<!-- ------------------------------------------------------------------ -->
+<br wp="br1"><br wp="br2"><hr>
+
+<p>
+<a href="index.html">Back To Home</a>
+
+</body>
+
+</html>

@@ -1,0 +1,581 @@
+      program sirfrin1
+
+*** sirf to rinex
+*** this version for sirf 2.2.0 (and prior) software
+
+***debug -- does NOT test if MID 7 comes AFTER MID 28
+
+      implicit double precision(a-h,o-z)
+      character*6 verdat
+      logical lhdr
+      dimension nmess(0:255)
+      integer*2 lengthpay
+      byte b1,b2,b3,b4,buff(50000),bmesid
+
+*** gps data storage block
+
+      parameter(mxsat=24)
+      dimension iprns(mxsat),phases(mxsat),prs(mxsat),cnos(mxsat)
+      common/gdata/iprns,phases,prs,cnos,gpst,gpstx,nsat
+      save  /gdata/
+
+*** version date
+
+      verdat='100618'
+
+      lin=1
+      lrnx=2
+      open(lin, file='sirfrin1.srf',form='binary',
+     *          convert='BIG_ENDIAN',status='old')
+      open(lrnx,file='sirfrin1.obs',form='formatted',status='unknown')
+
+      call doargs
+
+      call rinhdr(lrnx,verdat,lhdr)
+      do i=0,255
+        nmess(i)=0                   !*** initialize message counters
+      enddo
+      igwk=-1                        !*** gps week to null
+      gpstx=-9.9d20                  !*** set dump trigger to null
+      x=0.d0                         !*** rinex header pos. initialize
+      y=0.d0
+      z=0.d0
+
+***
+*** loop over messages until eof
+***
+
+  100 read(lin,end=777) b1
+  200 read(lin,end=777) b2
+      if(mybyte(b1).ne.160.or.mybyte(b2).ne.162) then    !*** 0xA0 and 0xA2
+        b1=b2
+        go to 200
+      endif
+
+*** synch characters detected -- read prefix
+
+      read(lin,end=777) lengthpay,bmesid
+      lenpay=myshort(lengthpay)
+      messid=mybyte (bmesid)
+      if(messid.lt.0.or.messid.gt.255) stop 39494
+
+*** process payload (or skip message contents)
+
+      if    (messid.eq. 7) then
+        if(lenpay.ne.20) go to 100
+        call doid7(lin,igwk,bias)
+      elseif(messid.eq.28) then
+        if(lenpay.ne.56) go to 100
+        call doid28(lin,lrnx,lhdr,igwk,bias,x,y,z)
+      elseif(messid.eq.2) then
+        if(lenpay.ne.41) go to 100
+        call doid2(lin,x,y,z)
+      else
+        lenpay1=lenpay-1              !*** already read message id
+        read(lin,end=777) (buff(i),i=1,lenpay1)
+      endif
+
+*** skip the checksums and end sequence
+
+      read(lin,end=777) b3,b4        !*** 2 checksum bytes
+      read(lin,end=777) b3,b4        !*** end sequence
+      if(mybyte(b3).ne.176.or.mybyte(b4).ne.179) go to 100   !*** 0xB0 and 0xB3
+      nmess(messid)=nmess(messid)+1                          !*** count message
+      go to 100
+
+*** end of file encountered
+
+  777 continue
+
+*** message count
+
+      do i=0,255
+        if(nmess(i).gt.0)
+     *    write(*,'(a,i4,a,i9)') 'id=',i,'  count=',nmess(i)
+      enddo
+
+      end
+
+***********************************************************************
+      subroutine doid2(lin,x,y,z)
+
+*** process measure navigation data out payload (41 bytes)
+
+      implicit double precision(a-h,o-z)
+
+      integer*4 ix,iy,iz,itow
+      integer*2 ivx,ivy,ivz,igwk
+      byte      bm1,bhdop,bm2,bnsv,bprns(12)
+
+      read(lin,end=777) ix,iy,iz,ivx,ivy,ivz,bm1,bhdop,bm2,
+     *                  igwk,itow,bnsv,bprns
+      x=dble(ix)
+      y=dble(iy)
+      z=dble(iz)
+
+  777 continue
+
+      return
+      end
+***********************************************************************
+      subroutine doid7(lin,iegweek,bias)
+
+*** process clock status data payload (20 bytes)
+
+      implicit double precision(a-h,o-z)
+
+      byte      bnsv
+      integer*2 iextgwk
+      integer*4 igpstow,idrift,ibias,iestgtm
+
+      read(lin,end=777) iextgwk,igpstow,bnsv,idrift,ibias,iestgtm
+      nsv    =mybyte(bnsv)
+      iegweek=myshort(iextgwk)
+      bias   =dble(ibias)/1.d9    !*** ns to seconds
+
+***debug -- signal eof condition on exit????
+  777 continue
+
+      return
+      end
+***********************************************************************
+      subroutine doid28(lin,lrnx,lhdr,igwk,bias,x,y,z)
+
+*** process navigation library measurement data payload (56 bytes)
+
+      implicit double precision(a-h,o-z)
+      parameter(sol=299792458.d0)           !*** speed of light (m/s)
+      parameter(f1 =1575.42d6)              !*** L1 freq        (Hz)
+      logical lhdr
+
+      byte      bchan,bprn,bsyncf,bcnos(10),bnerr,bnlop
+      integer*2 ittrk,idrng,mdrng,iextim
+      integer*4 ittag
+      real*4    carfrq
+      real*8    carphs
+      byte      bpr(8),bsof(8),bphs(8)
+
+      parameter(mxsat=24)
+      dimension iprns(mxsat),phases(mxsat),prs(mxsat),cnos(mxsat)
+      common/gdata/iprns,phases,prs,cnos,gpst,gpstx,nsat
+      save  /gdata/
+
+      logical lclean
+      common/args/lclean
+      save  /args/
+
+      read(lin,end=777) bchan,ittag,bprn,bsof,bpr,carfrq,bphs,ittrk,
+     *                  bsyncf,bcnos,idrng,mdrng,iextim,bnerr,bnlop
+      iprn  =mybyte(bprn)
+      softim=dblemy(bsof)
+      pr    =dblemy(bpr)
+***** carphs=dblemy(bphs)           !*** sirf sets carrier phase to zero
+
+      if(iprn.le.0.or.iprn.gt.32) return
+      r=dsqrt(x*x+y*y+z*z)          !*** does sirf have position yet?
+      if(r.le.6000000.d0) return
+
+      gpst=softim-bias
+
+*** test for dump data interrupt
+
+      if(gpst.gt.gpstx+0.001d0) then        !*** new gps time identified
+        call dumprin(lrnx,lhdr,igwk,x,y,z)
+        gpstx=gpst                          !*** reset dump trigger
+      endif
+
+*** quality test for functional time bias correction
+
+      if(lclean) then
+        igpst=idnint(gpst)
+        del=dabs(gpst-dble(igpst))
+        if(del.gt.0.001d0) return           !*** drop if not corrected
+      endif
+
+      cnosum=0.d0                           !*** compute average cno
+      do i=1,10
+        cnosum = cnosum + dble(mybyte(bcnos(i)))
+      enddo
+      cno=cnosum/10.d0
+
+      nsat=nsat+1
+      if(nsat.gt.mxsat) stop 723521
+      iprns(nsat) =iprn
+      prs(nsat)   =pr    -bias*sol
+***** phases(nsat)=carphs-bias*f1           !*** per rinex doc.
+      cnos(nsat)  =cno
+
+      return
+
+*** catch the end of file -- dump anything in data buffer
+
+  777 call dumprin(lrnx,lhdr,igwk,x,y,z)
+
+      return
+      end
+***********************************************************************
+      subroutine dumprin(lrnx,lhdr,igwk,x,y,z)
+
+*** dump current contents of the rinex file
+
+      implicit double precision(a-h,o-z)
+      parameter(mxsat=24,mxprn=32,iepflg=0)
+      dimension iprns(mxsat),phases(mxsat),prs(mxsat),cnos(mxsat)
+      common/gdata/iprns,phases,prs,cnos,gpst,gpstx,nsat
+      save  /gdata/
+
+      if(nsat.gt.1) then               !*** test doubleword decoding
+        prmn=+9.9d99
+        prmx=-9.9d99
+        do i=1,nsat
+          if(prs(i).lt.prmn) prmn=prs(i)
+          if(prs(i).gt.prmx) prmx=prs(i)
+        enddo
+        del=dabs(prmx-prmn)
+        if(del.gt.90000000.d0) then
+          write(*,*) 'detected bad pseudorange decoding'
+          write(*,*) 'this version of sirfrin1 does not handle'
+          write(*,*) 'this binary file format'
+          do i=1,nsat
+            write(*,*) i,prs(i)
+          enddo
+          write(*,*) 'intentional termination'
+          stop 2020202
+        endif
+      endif
+
+      if(nsat.gt.0) then
+***note: must use gpstx -- gpst has been updated by doid28()
+        call sowciv(igwk,gpstx,iyr,imo,idy,ihr,imn,sec)
+
+*** first -- check to see if need to finish rinex header
+
+        if(lhdr) call rinhd2(lrnx,iyr,imo,idy,ihr,imn,sec,x,y,z,lhdr)
+
+*** epoch header
+
+        write(lrnx,'(5i3,f11.7,i3,i3$)')
+     *        mod(iyr,100),imo,idy,ihr,imn,sec,iepflg,nsat
+
+        if(nsat.gt.mxsat) stop 222222
+        if(nsat.le.12) then
+          do i = 1,nsat
+            if(iprns(i).le.0.or.iprns(i).gt.mxprn) stop 98484
+            write(lrnx,'(''G'',i2$)') iprns(i)
+          enddo
+          write(lrnx,'(a1)')
+
+        else                       !*** write a 2-line header
+          do i = 1,12
+            if(iprns(i).le.0.or.iprns(i).gt.mxprn) stop 98484
+            write(lrnx,'(''G'',i2$)') iprns(i)
+          enddo
+          write(lrnx,'(a1)')
+
+          write(lrnx,'(a32$)') '                                '
+          do i =13,nsat
+            if(iprns(i).le.0.or.iprns(i).gt.mxprn) stop 98484
+            write(lrnx,'(''G'',i2$)') iprns(i)
+          enddo
+          write(lrnx,'(a1)')
+        endif
+
+        do i = 1,nsat
+          isnr=mapsnr(idnint(cnos(i)))
+          write(lrnx,'(f14.3,1x,i1)')  prs(i),isnr
+        enddo
+      endif
+
+      call inidata    !*** initialize for next data set
+
+      return
+      end
+      subroutine inidata
+
+*** initialize GPS data set for new epoch
+
+      implicit double precision(a-h,o-z)
+      parameter(mxsat=24)
+      dimension iprns(mxsat),phases(mxsat),prs(mxsat),cnos(mxsat)
+      common/gdata/iprns,phases,prs,cnos,gpst,gpstx,nsat
+      save  /gdata/
+
+      nsat=0
+
+      return
+      end
+***********************************************************************
+      subroutine rinhdr(lrn,verdat,lhdr)
+
+*** rinex header
+
+      implicit double precision(a-h,o-z)
+      character*6 verdat
+      logical lhdr
+      integer*2 iyr2,imo2,idy2,ihr2,imn2,isc2,ish2
+
+      call getdat(iyr2,imo2,idy2)
+      call gettim(ihr2,imn2,isc2,ish2)
+
+      write(lrn,'(a,a)')
+     * '     2.10           OBSERVATION DATA    G (GPS)             ',
+     * 'RINEX VERSION / TYPE'
+
+      write(lrn,'(a,a,a,i4,2i2.2,i3.2,a,i2.2,a,i2.2  ,a,a)')
+     * 'sirfrnx1 ',verdat,'     your name here      ',
+     *  iyr2,imo2,idy2,ihr2,':',imn2,':',isc2,'ET ',
+     * 'PGM / RUN BY / DATE'
+
+      write(lrn,'(a,a)')
+     * 'XXXX                                                        ',
+     * 'MARKER NAME'
+
+      write(lrn,'(a,a)')
+     * '0001                                                        ',
+     * 'MARKER NUMBER'
+
+      write(lrn,'(a,a)')
+     * 'your name here      <private>                               ',
+     * 'OBSERVER / AGENCY'
+
+      write(lrn,'(a,a)')
+     * 'nnnnn               SiRF III            Firmware unknown    ',
+     * 'REC # / TYPE / VERS'
+
+      write(lrn,'(a,a)')
+     * '000000              Antenna unknown                         ',
+     * 'ANT # / TYPE'
+
+      write(lrn,'(a,a)')
+     * '     1     0                                                ',
+     * 'WAVELENGTH FACT L1/2'
+
+      write(lrn,'(a,a)')
+     * '     1    C1                                                ',
+     * '# / TYPES OF OBSERV'
+
+      write(lrn,'(a,a)')
+     * '     1.0000                                                 ',
+     * 'INTERVAL'
+
+      write(lrn,'(a,a)')
+     * ' SNR is mapped to RINEX snr flag value [1-9]                ',
+     * 'COMMENT'
+
+      write(lrn,'(a,a)')
+     * '  L1: 10 dBHz = 1; 30 dBHz = 5; 50 dBHz = 9                 ',
+     * 'COMMENT'
+
+*** enable header writing second part
+
+      lhdr=.true.
+
+      return
+      end
+      subroutine rinhd2(lrn,iyr,imo,idy,ihr,imn,sec,x,y,z,lhdr)
+
+*** rinex header
+
+      implicit double precision(a-h,o-z)
+      logical lhdr
+
+      r=dsqrt(x*x+y*y+z*z)               !*** write default if null
+      if(r.gt.6000000.d0) then
+        write(lrn,'(3f14.4,a,a)') x,y,z,'                  ',
+     *   'APPROX POSITION XYZ'
+      else
+        write(lrn,'(a,a)')
+     *   '  1095790.2358 -4831326.5883  4003934.2615                  ',
+     *   'APPROX POSITION XYZ'
+      endif
+
+      write(lrn,'(a,a)')
+     * '        0.0000        0.0000        0.0000                  ',
+     * 'ANTENNA: DELTA H/E/N'
+
+      write(lrn,'(5i6.2,f13.7,a,a)')
+     *  iyr,imo,idy,ihr,imn,sec,'     GPS         ',
+     * 'TIME OF FIRST OBS'
+
+      write(lrn,'(a,a)')
+     * '                                                            ',
+     * 'END OF HEADER'
+
+*** disable any more header writing
+
+      lhdr=.false.
+
+      return
+      end
+      integer function mapsnr(isnr)
+
+*** map snr to rinex interval
+*** 10 dBHz = 1; 30 dBHz = 5; 50 dBHz = 9
+
+      implicit double precision(a-h,o-z)
+
+      mapsnr = idnint((isnr-10)/5.d0)+1
+      if(mapsnr.lt.1) mapsnr=1
+      if(mapsnr.gt.9) mapsnr=9
+
+      return
+      end
+***********************************************************************
+      integer function mybyte(b)
+
+*** convert byte to integer
+
+      byte b
+
+      if(b.lt.0) then
+        mybyte=b+256
+      else
+        mybyte=b
+      endif
+      return
+      end
+      integer function myshort(iu2)
+
+*** convert short unsigned integer to integer
+
+      integer*2 iu2
+
+      if(iu2.lt.0) then
+        myshort=iu2+65536
+      else
+        myshort=iu2
+      endif
+
+      return
+      end
+      double precision function dblemy(b)
+
+*** convert byte array to double precision
+*** for version 2.2.0 and earlier software
+
+      implicit double precision(a-h,o-z)
+      byte b(8),b2(8)
+      equivalence (b2,val)
+
+*** byte order is swapped within 4-byte word
+
+      b2(4)=b(1)
+      b2(3)=b(2)
+      b2(2)=b(3)
+      b2(1)=b(4)
+      b2(8)=b(5)
+      b2(7)=b(6)
+      b2(6)=b(7)
+      b2(5)=b(8)
+
+      dblemy=val
+
+      return
+      end
+      subroutine sowciv(igwk,sow,iyr,imo,idy,ihr,imn,sec)
+
+*** convert gps week/seconds of week to civil
+
+      implicit double precision(a-h,o-z)
+      parameter(mjd6jan80=44244)
+
+*** fmjdg computation preserves digits
+
+      mjd  = igwk*7 + sow/86400.d0 + mjd6jan80
+      fmjd = dmod(sow,86400.d0)/86400.d0
+      call mjdciv(mjd,fmjd,iyr,imo,idy,ihr,imn,sec)
+
+      return
+      end
+      subroutine mjdciv(mjd,fmjd,iyr,imo,idy,ihr,imn,sec)
+
+*** convert modified julian date to civil date
+
+*** imo in range 1-12, idy in range 1-31
+*** only valid in range mar-1900 thru feb-2100
+*** ref: hofmann-wellenhof, 2nd ed., pg 34-35
+*** operation confirmed for leap years (incl. year 2000)
+
+      implicit double precision(a-h,o-z)
+
+      rjd=mjd+fmjd+2400000.5d0
+      ia=(rjd+0.5d0)
+      ib=ia+1537
+      ic=(ib-122.1d0)/365.25d0
+      id=365.25d0*ic
+      ie=(ib-id)/30.6001d0
+
+*** the fractional part of a julian day is fractional mjd + 0.5
+*** therefore, fractional part of julian day + 0.5 is fractional mjd
+
+      it1=ie*30.6001d0
+      idy=ib-id-it1+fmjd
+      it2=ie/14.d0
+      imo=ie-1-12*it2
+      it3=(7+imo)/10.d0
+      iyr=ic-4715-it3
+
+      tmp=fmjd*24.d0
+      ihr=tmp
+      tmp=(tmp-ihr)*60.d0
+      imn=tmp
+      sec=(tmp-imn)*60.d0
+
+      return
+      end
+***********************************************************************
+      subroutine doargs
+
+*** process command line arguments
+*** caution: system-dependent fortran 77 (MS-fort)
+
+      implicit double precision(a-h,o-z)
+      character*255 buff
+      integer*2     ipos,status
+
+      call iniargs
+
+      n=nargs()                    !*** including the program name
+      do i=2,n                     !*** skip the program name
+        ipos=i-1
+        call getarg(ipos,buff,status)
+        istat=status
+        if(istat.gt.0) call doarg(buff,istat)
+      enddo
+
+      return
+      end
+      subroutine iniargs
+
+*** initialize default argument values
+
+      implicit double precision(a-h,o-z)
+
+      logical lclean
+      common/args/lclean
+      save  /args/
+
+      lclean=.false.               !*** do not clean data
+
+      return
+      end
+      subroutine doarg(buff,istat)
+
+*** initialize default argument values
+
+      implicit double precision(a-h,o-z)
+      character*(*) buff
+
+      logical lclean
+      common/args/lclean
+      save  /args/
+
+*** -c, clean data
+
+      if(buff(1:2).eq.'-c') then
+         write(*,*) 'c -- clean data'
+         lclean=.true.
+      endif
+
+      return
+      end

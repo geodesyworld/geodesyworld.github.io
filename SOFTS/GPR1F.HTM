@@ -1,0 +1,198 @@
+<html>
+<head>
+<title>Double Difference Pseudorange (kinematic)</title>
+</head>
+
+<META NAME="KEYWORDS" CONTENT="GPS, software, RINEX, double difference">
+
+<body background="whitep.gif" text="#000000" link="#0000ff" vlink="#551a8b" alink="#ff0000">
+
+<h2><strong>DOUBLE DIFFERENCE PSEUDORANGE, KINEMATIC</strong></h2>
+
+<p>Dennis Milbert
+
+<pre>
+Updated:  2-may-02
+</pre>
+
+<!-------     <br wp="br1"><br wp="br2">     ------>
+
+<p>The program, <em>gpr1f</em>, takes a <em>gmerge</em> file, a precise orbit in
+SP3 format, and computes the position series for 
+point 2 using single frequency (L1), double difference pseudoranges.
+
+<br wp="br1"><br wp="br2"><h3>Contents</h3>
+
+<ul>
+  <li><a href="#link0">Operation</a></li>
+  <li><a href="#link1"><em>gmerge</em> Format</a></li>
+  <li><a href="#link2">SP3 Format</a></li>
+  <li><a href="#link3">Output Format</a></li>
+  <li><a href="#link5">Shortcomings</a></li>
+  <li><a href="#linkx">Source Code and Binary Executable</a></li>
+  <li><a href="#linky">Links to Other Pages</a></li>
+  <li><a href="#linkz">To Contact Me</a></li>
+  <li><a href="index.html">Back To Home</a></li>
+</ul>
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link0"><hr>
+<p>Operation</a></h4>
+
+<p>The program operates in the DOS window.  Alternatively, you can simply
+run "gpr1f.exe" with a double click or with "Run..." in your "Start" menu.
+(I use the DOS window myself.)
+
+<p>Two files are needed for input.  Two files are generated as output.  
+The names are fixed.  The files must be in the subdirectory where you are
+working.
+
+<p>Input Files:
+
+<p><em>gmerge.out</em> -- ASCII, "gmerge" format.  This is merged pseudorange
+and carrier phase, at a common interval and data rate.  The first station (point1)
+is assumed fixed, and the second station (point 2) can be fixed or moving.
+Follow the link for information on making a <a href="gmerge.htm">gmerge file</a>.
+
+<p><em>orbit.sp3</em> -- ASCII, SP3 format, precise orbit.
+
+<p>Output Files:
+
+<p><em>gpr1f.lst</em> -- ASCII, listing.  Just a simple log file confirming processing.
+
+<p><em>gpr1f.out</em> -- ASCII, position listing.  This contains the coordinate solution
+for each epoch of the L1 phase center.
+
+<p>Discussion:
+
+<p>The double difference pseudorange is something of a "classic" solution.
+The double difference cancels clock error in the GPS satellites (tiny) and
+in the GPS receivers (not tiny).  What's left is orbit error, atmospheric
+error, and local (multipath and noise).  Bottom line, double differences have 
+a slow increase in error when increasing station separation.  This makes double
+difference pseudorange superior to DGPS, and why some manufacturers use it
+as a post-processing option.  Precise orbits are very good, 
+leaving atmosphere error (iono and tropo) and multipath error in the residuals.
+
+<p>This version, <em>gpr1f</em>, is a kinematic solution.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link1"><hr>
+<p><em>gmerge</em> Format</a></h4>
+
+<p>This is a simple ASCII, flat file.  The header contains exactly 14 records.
+The 14-th record indicates how many epoch sets follow.
+
+<p>Each epoch set consists of an epoch header and a number of data records.
+There is one data record for each satellite in the epoch.
+
+<p>Here is the detailed <a href="gmerge.fmt.txt">gmerge format</a> file.
+Follow the link for more information on making a <a href="gmerge.htm">gmerge file</a>.
+
+<p>Here is a sample <a href="gmerge.out.txt">gmerge.out</a> file.  It was
+generated between two CORS stations, SEAT to SEAW, for 3 epochs of
+data.  Note the null values (99999999.999) generated whenever a given data 
+element is not available.  Time is in seconds from midnight (GPS time) of
+the day in the first record of the file (20jan2002).
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link2"><hr>
+<p>SP3 Format</a></h4>
+
+<p>Precise orbits are distributed in a format called SP3.
+The format is available from
+<a href="http://www.ngs.noaa.gov/GPS/SP3_format.html">NGS</a> and 
+<a href="sp3fmt.txt">here</a>.  If you need the orbits themselves, they are
+easy to get from NGS at their 
+<a href="http://www.ngs.noaa.gov/CORS/">CORS</a> site. 
+
+<p>Here is a sample <a href="igs10711.sp3.txt">igs10711.sp3</a> (316K) SP3 orbit.
+It is a precise orbit solution computed by the International GPS Service (IGS).
+(It was also concatenated with the next day's orbit.)
+Note that if there is an entry of "999999.999999" in the clock field, then that 
+satellite can't be used for that epoch.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link3"><hr>
+<p>Output Format</a></h4>
+
+<p>This is a simple ASCII, flat file.  Two records per station.  
+The file name is very simple, "pos" -- no extention.  This file
+functions as a mini-database of authoritative coordinates.  The file is
+mandatory.  However, if a given station is not found in the <em>pos</em> file,
+then the RINEX header is used for station coordinates instead.
+
+<p>The format is a simple adaptation of the National Geodetic Survey "Blue Book"
+format.
+
+<pre>
+01-08  time, seconds past midnight, GPS time
+09-23  geodetic latitude,  decimal degrees, positive north
+24-38  geodetic longitude, decimal degrees, positive east
+39-48  ellipsoidal height, meters, positive up
+49-52  number of double differences in epoch
+</pre>
+
+<p>Here is an example <a href="gpr1f.out"><em>gpr1f.out</em></a> file.  It was
+extracted from results from the CORS stations SEAT to SEAW
+for 20jan2002.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link5"><hr>
+<p>Shortcomings</a></h4>
+
+<p>This is "no frills" software.  There are no warranties of any sort.
+No Windows GUI.  Just the core function.
+
+<p>You must have the 2 input files with the names above.  The program will
+overwrite any existing "gpr1f.lst" and "gpr1f.out" file in the working directory.
+
+<p>The program does not currently apply phase center variation with
+vertical angle.
+The program does not currently apply any ionosphere
+correction, or a troposphere model.  Results will degrade with distance.
+Also, the double differences are treated as uncorrelated.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="linkx"><hr>
+<p>Source Code and Binary Executable</a></h4>
+
+<p>The Fortran source code is <a href="gpr1f.for.txt">gpr1f.for</a>.
+
+<p>The compiled executable (zipped) is <a href="gpr1f.zip">gpr1f.exe</a>.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="linky"><hr>
+<p>Links to Other Pages</a></h4>
+
+<p>
+<p>Sources of SP3 GPS precise orbit data
+<ul>
+
+<p>National Geodetic Survey:
+<a href="http://www.ngs.noaa.gov/CORS/">National CORS</a>. 
+
+<p>International GPS Service:
+<a href="http://igscb.jpl.nasa.gov/components/prods_cb.html">IGS Products</a>. 
+
+</ul>
+
+<!-- ------------------------------------------------------------------ -->
+<br wp="br1"><br wp="br2"><h4><a name="linkz"><hr>
+<p>To Contact Me</a></h4>
+
+<p>My e-mail user name is the first initial of my first name
+followed by all the letters of my last name (see above).  My ISP is
+"comcast", and it is a "dot-net", not a "dot-com".  Sorry for not spelling
+out my e-mail address, but I try to keep the spam-bots
+from fingering me.  But, just so the spam-bots don't feel left
+out, they can always go to abuse@comcast.net
+
+<!-- ------------------------------------------------------------------ -->
+<br wp="br1"><br wp="br2"><hr>
+
+<p>
+<a href="index.html">Back To Home</a>
+
+</body>
+</html>

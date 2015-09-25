@@ -1,0 +1,11 @@
+note: use df77plain.bat to compile
+Current system barfs when encountering
+  USE DFLIB
+  USE DFPORT
+
+to get around, run "dfvars" first --
+this executes dfvars.bat
+
+C:\Program Files\Microsoft Visual Studio\DF98\BIN\dfvars.bat
+
+This sets environment variables to find the libraries.

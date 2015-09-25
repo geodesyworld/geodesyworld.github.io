@@ -1,0 +1,388 @@
+<html>
+<head>
+<title>Solid Earth Tide</title>
+</head>
+
+<META NAME="KEYWORDS" CONTENT="solid, earth, tide, GPS, software">
+
+<body background="whitep.gif" text="#000000" link="#0000ff" vlink="#551a8b" alink="#ff0000">
+
+<h2><strong>SOLID EARTH TIDE</strong></h2>
+
+<p>Dennis Milbert
+
+<pre>
+Updated:  2008-jul-04</pre>
+
+<!-------     <br wp="br1"><br wp="br2">     ------>
+<p>The program, <em>solid</em>, will ask for a date and location,
+and then writes solid earth tide (body tide) components into a text file.
+
+<p><font size=-1>
+Fine Print:
+If you are looking for wet tide (ocean tide) software, you do not want to be here.
+Information on wet tides for the USA can be found at NOAA's
+<a href="http://tidesandcurrents.noaa.gov/">"Center for Operational Oceanographic Products and Services"</a>.
+</font>
+
+<br wp="br1"><br wp="br2"><h3>Contents</h3>
+
+<ul>
+  <li><a href="#link0">Operation</a></li>
+  <li><a href="#link1">Output File Format</a></li>
+  <li><a href="#link2">Source Code and Binary Executable</a></li>
+  <li><a href="#link3">Discussion</a></li>
+  <li><a href="#link4">Permanent Earth Tide</a></li>
+  <li><a href="#link5">Shortcomings</a></li>
+  <li><a href="#link6">Acknowledgements</a></li>
+  <li><a href="#linkz">To Contact Me</a></li>
+  <li><a href="index.html">Back To Home</a></li>
+</ul>
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link0"><hr>
+<p>Operation</a></h4>
+
+<p>The <em>solid.exe</em> program runs in a DOS window.
+It prompts for date and location, and creates the file <em>solid.txt</em>. 
+Example of how to run the program:
+
+<pre>
+   solid
+</pre>
+
+<p>The program will first ask for a year, a month number, and a day.
+Dates must range from 1980-jan-06 through 2009-jun-29.
+The program will then ask for a geodetic (ellipsoidal) latitude and
+longitude.  An Earth-centered, GRS80 ellipsoid is used.  (Which can be
+considered equivalent to the WGS84 ellipsoid at the sub-millimeter level.)
+
+<p>One file is generated as output.  It's name is <em>solid.txt</em>.
+If you have an existing <em>solid.txt</em> file in your subdirectory, then
+the old file will be overwritten.
+You can cancel the program by pressing "ctrl" and "c" at the
+same time.  (However, program <em>solid</em> runs so fast that you will not have
+a chance to cancel it.)
+
+<p>Input:
+
+<p>Dates must range from 1980-jan-06 through 2009-jun-29.
+Input latitude is in decimal degrees, positive North.
+Input longitude is in decimal degrees, positive East, and may
+range from -360.0 to +360.0.  Thus, 91.5W may be entered
+as either -91.5 or +268.5.
+
+<p>Output File:
+
+<p>The output file name is <em>solid.txt</em>.
+It is plain ASCII text.  After the header, solid earth tide components
+are computed for 24 hours, at 1 minute intervals.  Note: the
+time stamps refer to GPS time, not civil time.
+The solid earth tide components are North, East, Up in the local
+geodetic (ellipsoidal) horizon system.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link1"><hr>
+<p>Output File Format</a></h4>
+
+<p>The first line echos the requested date.
+The second line echos the position.
+
+<p>The format of the remaining records are:
+
+<pre>
+01-08  Seconds of day, GPS time system, seconds
+09-18  Solid Earth Tide, North component, meters  (to 0.000001 m)
+19-28  Solid Earth Tide, East  component, meters  (to 0.000001 m)
+29-38  Solid Earth Tide, Up    component, meters  (to 0.000001 m)
+</pre>
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><h4><a name="link2"><hr>
+<p>Source Code and Binary Executable</a></h4>
+
+<p>The Fortran source code is <a href="solid.for.txt">solid.for</a>.
+
+<p>The compiled executable (zipped) is <a href="solid.zip">solid.exe</a>.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link3"><hr>
+<p>Discussion</a></h4>
+
+<p>Everybody is used to the ocean tide.  The pull of the Moon and the Sun on the 
+ocean causes cyclic variations in local sea level that can exceed 10 meters in some places.
+
+<p>What is less well known is that the Earth itself also responds to lunisolar 
+gravitational attraction.  The solid earth tide (body tide) often reaches
++/- 20 cm, and can exceed 30 cm.  While ocean tides can be easily measured 
+relative to the solid Earth, solid earth tides are easily measured only with 
+satellite systems or sensitive gravimeters.  Also, the solid earth tide 
+is a very smooth function around the Earth.  For this reason, differential 
+positioning systems, such as differential carrier phase GPS, can frequently 
+ignore solid earth tide effects.  Global geodetic networks and GPS carrier phase
+precise point positioning must include the effect of solid earth tide.
+
+<p>Program <em>solid</em> is based on an edited version of the <em>dehanttideinelMJD.f</em> 
+source code provided by Professor V. Dehant.  This code is an implementation of 
+the solid earth tide computation found in section 7.1.2 of the
+<a href="http://www.iers.org/MainDisp.csl?pid=46-25776">IERS Conventions (2003)</a>
+, IERS Technical Note No. 32.
+
+<p>A few words are in order about the editing.  <em>dehanttideinelMJD.f</em>
+contains entries that are not found in Table 7.5a of the Conventions.  These 
+entries, which are smaller than 0.05 mm, are retained.  However, whenever a 
+<em>dehanttideinelMJD.f</em> entry differed from Table 7.5a of the Conventions, 
+irrespective of magnitude, the Table 7.5a value was used.
+
+<p><em>Solid</em> is invoked in the GPS time system.  Note that this time system differs 
+from both universal time and terrestrial time (ephemeris time).  GPS time is 
+converted into terrestrial time before calling the Step 2 computations.  
+
+<p><em>Solid</em> is driven by a pair of routines that compute low-precision geocentric 
+coordinates for the Moon and the Sun.  These routines were coded from the 
+equations in "<em>Satellite Orbits: Models, Methods, Applications</em>" by Montenbruck & 
+Gill (2000), section 3.3.2, pp.70-73.
+One may also refer to "<em>Astronomy on the Personal Computer</em>", 4th ed. by 
+Montenbruck & Pfleger (2005), section 3.2, pp.38-39.  This reference 
+explains that the distinction between universal time (UTC) and terrestrial time 
+(TT) is negligible for these low-precision functions.  Even so, <em>solid</em> does include 
+the conversions between GPS time, UTC, and TT.  Since leap seconds are involved 
+in the conversions, users will need to edit the source code to incorporate 
+future leap seconds (i.e. after June 29, 2008).
+
+<p>In keeping with the design of <em>dehanttideinelMJD.f</em>, program <em>solid</em>
+removes all tidal deformation, both cyclic and permanent.
+More detail on this point can be found
+in the section below on <a href="#link4">permanent earth tide</a>.
+<em>Solid</em> implements the conventions described in Section 7.1.2 of the
+<a href="http://www.iers.org/MainDisp.csl?pid=46-25776">IERS Conventions (2003)</a>.
+<em>Solid</em> does
+not implement ocean loading, atmospheric loading, or deformation due to polar motion,
+which are described in other sections of the Conventions.
+
+<p>In addition to the <em>solid</em> program, one can try out an online solid earth tide 
+application at the Bern University, Switzerland:
+<a href="http://www.aiub.unibe.ch/content/services/earth_tides/index_eng.html">
+http://www.aiub.unibe.ch/content/services/earth_tides/index_eng.html</a>.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link4"><hr>
+<p>Permanent Earth Tide</a></h4>
+
+<p><font size=-1>
+Fine Print:
+This section is not for the faint of heart.
+It can be skipped unless you <em>really</em> want to see the details involved in the
+creation and maintenance of global geodetic networks.
+</font>
+
+<p>Lets begin with a fact discovered by Darwin in 1899.
+
+<p><B>Tides of the Earth do not average to zero.</B>
+
+<p>This gives us a quick corollary.
+
+<p><B>Tidal deformation of the Earth does not average out to zero.</B>
+
+<p>The easiest way to imagine this is to pretend that the Moon and Sun orbit around 
+the Earth.  Imagine them orbiting faster and faster, so that, on the average, 
+they are "smeared" into bands around the Earth.  Alternatively, you can imagine 
+the Moon and Sun as chopped into tiny bits and spread around the Earth in a 
+two-band system.  These "average bands" will cause a permanent gravitational 
+attraction leading to an increased equatorial bulge of the non-rigid Earth.  In 
+other words, most of the Earth’s equatorial bulge is due to the Earth’s 
+rotation.  But, there is a portion of the bulge that is created by the 
+average tug of the Moon and Sun.  The average attraction is called the permanent
+tide, and the associated effect on the Earth’s equatorial
+bulge is called the permanent tidal deformation (PTD).
+
+<p>Here is the second fact that makes this particularly complex.
+
+<p><B>The permanent tidal deformation is unobservable.</B>
+
+<p>We know that the permanent deformation exists.  And, satellite (and gravity, and 
+VLBI) systems tell us about the Earth’s equatorial bulge and its variations.  
+But, these systems tell us about the *total* bulge, and not how it is 
+partitioned between the rotational part and the permanent tidal part.  If there 
+were a way to magically eliminate the Moon and Sun, then we could observe a 
+"before-and-after" effect, and establish the magnitude of the permanent tidal 
+deformation (PTD).
+
+<p>Now, its possible to make an educated guess on how big the PTD is.  It happens that radial 
+deformation is related to disturbing gravitational potential through a quantity 
+called a
+<a href="http://scienceworld.wolfram.com/physics/LoveNumber.html">Love number</a>.
+(There are also Shida numbers that relate horizontal displacement to 
+potential.)  Through theory and indirect measurements, nominal values for Love 
+and Shida numbers were established.  Using these nominal values, one could 
+compute PTD, since the masses and motions of the Moon and Sun were known.  At 
+its heart, though, these computations are based on a model.
+
+<p>PTD became an issue for geodesists in 1959 when Honkasalo presented
+a paper on correction of gravity data.  The Honkasalo correction 
+restored the permanent tide that was removed in the tide correction
+procedure.  In this way, only the truly cyclic tidal elements were
+removed.  This approach was called a "mean tide" system, and was used in
+computation of the global gravity network, IGSN71.
+
+<p>However, this retention of permanent tide violated theory that called for
+removal of external masses when computing the equipotential surface of the Earth
+(Heikkinen 1979).
+This caused the
+<a href="http://www.iag-aig.org/">International Association of Geodesy (IAG)</a>
+to resolve in 1979 
+to revert to the previous practice of tide correction, and remove the permanent
+tidal effects along with the periodic effects.  This is 
+designated as a "non-tidal" or "tide-free" system.
+
+<p>A plot of the radial difference between these two permanent tide systems
+can be found in <a href="ptd.png">Figure 1</a>.
+The systems differ from +6 cm at the equator to -12 cm at the poles.
+The horizontal component (not shown) is 0 at the pole and equator, and reaches 2.5 cm at mid-latitude.
+
+<p>If one removes the Earth’s displacement due to the permanent tide, the PTD, 
+then one gets errors in the model for the Earth’s length of day.
+It was proposed that one 
+remove all tidal effects (tide-free) but then restore only the permanent tidal 
+deformation and the associated changes in the Earth’s potential associated with 
+that restored deformation.  This re-reverts back to a mean tide system for
+station coordinates.  And, it creates a new, "zero tide" system for the geopotential.
+This was adopted by the IAG in 1983.  
+
+<p>This resolution has <em>not</em> met with widespread acceptance.  The situation is
+described in the
+<a href="http://www.iers.org/MainDisp.csl?pid=46-25776">IERS Conventions (2003)</a>
+, IERS Technical Note No. 32, Section 1.1, page 10:
+
+<p><font size=-1>
+This recommendation, however, has not been implemented in the algorithms used for
+tide modeling by the geodesy community in the analysis of space geodetic
+data in general.  As a consequence, the station coordinates that go with such
+analyses (see Chapter 4) are "conventional tide free" values.
+</font>
+
+<p>Thus, in conformance with the IERS Conventions, both <em>dehanttideinelMJD.f</em> and 
+program <em>solid</em> remove all tidal deformation, both cyclic and permanent.
+As such, they realize a "conventional tide free" system.
+
+<p>Where does this leave us?
+
+<p>We have an effect that is sometimes negligible, is unobservable, but is non-zero and
+imbedded in various reference systems.  Know that there are multiple ways of handling
+PTD.  And, know that PTD is, indeed, handled differently in practice.  The good news is
+that one may readily transform geometric and gravimetric quantities between the
+permanent tide systems.
+
+<p>References
+
+<p>This section is inspired in equal parts by:
+
+<p>Ekman, M., 1989: Impacts of Geodynamic Phenomena on Systems for Height and Gravity.
+<em>Bulletin Geodesique</em>, 63(3), pp. 281-296.
+
+<p>IERS Conventions (2003). Dennis D. McCarthy and Gérard Petit.
+(IERS Technical Note No. 32) Frankfurt am Main: Verlag des Bundesamts für Kartographie
+und Geodäsie, 2004. 127 pp., paperback, ISBN 3-89888-884-3,
+<a href="http://www.iers.org/MainDisp.csl?pid=46-25776">
+(http://www.iers.org/MainDisp.csl?pid=46-25776)</a>.
+
+<p>In addition --
+
+<p>Darwin, G.H., 1899: The Theory of the Figure of the Earth.
+<em>Monthly Notices of the Royal Astronomical Society</em>, 60.
+
+<p>Heikkinen, M., 1979: On the Honkasalo Term in Tidal Corrections to
+Gravimetric Observations.
+<em>Bulletin Geodesique</em>, 53(3), pp. 239-245.
+
+<p>Honkasalo, T., 1964: On the Tidal Gravity Correction.
+<em>Bollettino di Geofisica Teorica ed Applicata</em>, 21(4).
+
+<p>International Association of Geodesy (IAG), 1980:
+IAG Resolutions adopted at the XVII General Assembly of the IUGG
+in Canberra, December 1979. <em>Bulletin Geodesique</em>, 54(3),
+"The Geodesist's Handbook", p. 389.
+
+<p>International Association of Geodesy (IAG), 1984:
+IAG Resolutions adopted at the XVIII General Assembly of the IUGG
+in Hamburg, August 1983. <em>Bulletin Geodesique</em>, 58(3),
+"The Geodesist's Handbook", p. 321.
+
+<p>Lambeck, K., 1980: The Earth's Variable Rotation:
+Geophysical Causes and Consequences. Cambridge University Press, pp. 28-29.
+
+<p><font size=-1>
+<pre>
+----------------------------------------------------------------------------
+</pre>
+Footnote:
+
+<p>In time it was found that Love numbers vary with tidal frequency,
+and that Love numbers for PTD (fluid limit Love numbers; e.g. Lambeck, 1980)
+were different from nominal (conventional) values. Even so, these newer Love
+numbers for PTD are based on indirect measurements and models.  They would
+enable an alternative tide free system to the "conventional tide free" system.
+
+<p>Footnote:
+
+<p>To get the full flavor of the PTD effect, understand that one gets two
+pieces when considering gravity and potential --
+
+<ul>
+  <li>External (direct) potential -- caused by the Sun and Moon</li>
+  <li>Indirect potential -- caused by tidal deformation of the Earth</li>
+</ul>
+
+These, in combination, generate another way to handle the tides systems for
+gravitational factors (i.e. zero tide).  The geometric PTD only sets up two
+permanent tide systems.  The
+<a href="http://www.iers.org/MainDisp.csl?pid=46-25776">IERS Conventions (2003)</a>
+, Section 1.1, is recommended reading.
+</font>
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link5"><hr>
+<p>Shortcomings</a></h4>
+
+<p>This is "no frills" software.  There are no warranties of any sort.
+No Windows GUI.  Just the core function.
+
+<p>This program is written as a demonstration and a way of applying a
+reasonable solid earth tide correction.  It's expected that this software
+could be imbedded into other applications.
+
+<p>To create a full blown, research-grade code, more effects could
+be added.  Program <em>solid</em> does not contain
+ocean loading, atmospheric loading, or deformation due to polar motion.
+Also, one would want a more accurate set of routines to compute the geocentric
+positions of the Moon and the Sun.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link6"><hr>
+<p>Acknowledgements</a></h4>
+
+<p>Thanks to Professor V. Dehant for providing the <em>dehanttideinelMJD.f</em> 
+source code.
+That code is authored by V. Dehant, S. Mathews, J. Gipson, and C. Bruyninx.
+Helpful discussion and assistance was provided by J. Ray and D. Smith.
+Professor V. Dehant alerted me to a sign correction and a table correction.
+Any errors are my own.
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="linkz"><hr>
+<p>To Contact Me</a></h4>
+
+<p>My e-mail user name is the first initial of my first name
+followed by all the letters of my last name (see above).  My ISP is
+"comcast", and it is a "dot-net", not a "dot-com".  Sorry for not spelling
+out my e-mail address, but I try to keep the spam-bots
+from fingering me.  But, just so the spam-bots don't feel left
+out, they can always go to abuse@comcast.net
+
+<!-- ------------------------------------------------------------------ -->
+<br wp="br1"><br wp="br2"><hr>
+
+<p>
+<a href="index.html">Back To Home</a>
+
+</body>
+</html>

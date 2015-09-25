@@ -1,0 +1,406 @@
+      program cmc2rin
+
+*** convert cmc log file into rinex
+
+      implicit double precision(a-h,o-z)
+      character*6 verdat
+      logical lhdr
+      dimension nmess(0:255)
+      byte b1,b2,b3,b4,b5,b6,buff(255+4)
+
+*** version date
+
+      verdat='020326'
+
+      lin=1
+      lrnx=2
+      open(lin, file='z.log',form='binary',status='old')
+      open(lrnx,file='z.obs',form='formatted',status='unknown')
+
+    1 write(*,'(a$)') ' GPS week = '
+      read(*,*,err=1) igwk
+      if(igwk.le.0) go to 1
+      pgpstx=0.d0
+
+      call croini
+      call rinhdr(lrnx,verdat,lhdr)
+      do 2 i=1,255
+    2 nmess(i)=0
+
+***
+*** loop over messages until eof
+***
+
+*** read message block header, message, and checksum
+
+  100 read(lin,end=777) b1,b2,b3
+  200 read(lin,end=777) b4
+      if(b1.ne.1.or.(b2+b3).ne.-1) then
+        b1=b2
+        b2=b3
+        b3=b4
+        go to 200
+      endif
+      messid=mybyte(b2)
+      meslen=mybyte(b4)
+      nmess(messid)=nmess(messid)+1
+      if(messid.eq.23) then
+        call do23(lin,lrnx,igwk,lhdr,pgpstx)
+      else
+        read(lin,end=777) (buff(i),i=1+4,meslen+4)
+      endif
+      read(lin,end=777) b5,b6
+      go to 100
+
+*** end of file encountered
+
+  777 continue
+      do 3 i=0,255
+        if(nmess(i).gt.0) write(*,*) 'id=',i,'  count=',nmess(i)
+    3 continue
+
+      end
+      subroutine do23(lin,lrnx,igwk,lhdr,pgpstx)
+
+*** process message 23 (measurement data block)
+
+      implicit double precision(a-h,o-z)
+      parameter(cr=1023000*2048.d0,sol=299792458.d0,maxsat=12,iepflg=0)
+      dimension iprns(maxsat),phases(maxsat),ll1s(maxsat),
+     *          isnrs(maxsat),prs(maxsat)
+      logical lhdr
+      byte b1,b2,b3
+      logical dec5,lstlok,oppsgn
+
+*** 2 reserved bytes, then number of satellites
+
+      read(lin) b1,b2,b3
+      nsv=mybyte(b3)
+
+*** predicted gps time in seconds of week
+
+      read(lin) pgpst
+      if(pgpst.lt.0.d0) return
+      if(mod(idnint(pgpst),5).eq.0) then
+        dec5=.true.
+      else
+        dec5=.false.
+      endif
+*** gps week rollover if pred. gps time decreases
+      if(pgpst.lt.pgpstx) igwk=igwk+1
+      pgpstx=pgpst
+      call sowciv(igwk,pgpst,iyr,imo,idy,ihr,imn,sec)
+
+*** loop over satellite blocks
+
+      do 100 isv = 1,nsv
+
+***** read and parse
+
+        read(lin) b1,b2,icode,icarr,b3
+        iprn  =iand(b1,2#00111111)+1
+        isnr  =mybyte(b2)
+        icflag=iand(icarr,2#00000000000000000000000000000011)
+        icfrac=iand(icarr,2#00000000000000000000111111111100)
+        icfrac=ishc(icfrac,-2)
+        iccycl=iand(icarr,2#11111111111111111111000000000000)
+        iccycl=ishc(iccycl,-12)
+        nslip =mybyte(b3)
+
+***** interpret
+
+        iprns(isv)=iprn
+        oppsgn=.false.
+        if(icflag.eq.0) then
+          lstlok=.false.
+        else
+          lstlok=.true.
+        endif
+        ll1s(isv)=ll1phs(lstlok,oppsgn)
+        isnrs(isv)=mapsnr(isnr)
+        phases(isv)=dble(iccycl)+icfrac/1024.d0
+        call crofix(iprn,phases(isv))
+        prsec=dmod(pgpst,1.d0) - (icode/cr)
+        if(prsec.lt.0.d0) prsec=prsec+1.d0
+        prs(isv)=prsec*sol
+  100 continue
+
+***** output loop -- adjust output time for display
+*****             -- prevent 60.0 sec displays
+
+      if(dec5) then
+        igwkn=igwk
+        pgpstn=pgpst
+        if(sec.gt.(60.d0-0.0000000499d0)) pgpstn=pgpstn+0.0000000499d0
+        if(pgpstn.ge.604800.d0) then
+          pgpstn=pgpstn-604800.d0
+          igwkn=igwkn+1
+        endif
+        call sowciv(igwkn,pgpstn,iyrn,imon,idyn,ihrn,imnn,secn)
+        if(lhdr) call rinhd2(lrnx,iyrn,imon,idyn,ihrn,imnn,secn,lhdr)
+        write(lrnx,'(5i3,f11.7,i3,i3,12(''G'',i2))')
+     *  mod(iyrn,100),imon,idyn,ihrn,imnn,secn,iepflg,nsv,
+     *  (iprns(i),i=1,nsv)
+        do 200 isv = 1,nsv
+          write(lrnx,'(f14.3,2i1,f14.3)') 
+     *         phases(isv),ll1s(isv),isnrs(isv),prs(isv)
+  200   continue
+      endif
+
+      return
+      end
+      subroutine rinhdr(lrn,verdat,lhdr)
+
+*** rinex header
+
+      implicit double precision(a-h,o-z)
+      character*6 verdat
+      logical lhdr
+      integer*2 iyr2,imo2,idy2,ihr2,imn2,isc2,ish2
+
+      call getdat(iyr2,imo2,idy2)
+      call gettim(ihr2,imn2,isc2,ish2)
+
+      write(lrn,'(a,a)')
+     * '     2.10           OBSERVATION DATA    G (GPS)             ',
+     * 'RINEX VERSION / TYPE'
+
+      write(lrn,'(a,a,a,i4,2i2.2,i3.2,a,i2.2,a,i2.2  ,a,a)')
+     * 'cmc2rin  ',verdat,'     your name here      ',
+     *  iyr2,imo2,idy2,ihr2,':',imn2,':',isc2,'ET ',
+     * 'PGM / RUN BY / DATE'
+
+      write(lrn,'(a,a)')
+     * 'XXXX                                                        ',
+     * 'MARKER NAME'
+
+      write(lrn,'(a,a)')
+     * '0001                                                        ',
+     * 'MARKER NUMBER'
+
+      write(lrn,'(a,a)')
+     * 'your name here      <private>                               ',
+     * 'OBSERVER / AGENCY'
+
+      write(lrn,'(a,a)')
+     * 'nnnnn               CMC SUPERSTAR OEM   100-600266-opt14    ',
+     * 'REC # / TYPE / VERS'
+
+      write(lrn,'(a,a)')
+     * 'AT575-70CMCW        AeroAntenna Tech.                       ',
+     * 'ANT # / TYPE'
+
+      write(lrn,'(a,a)')
+     * '  1095790.2358 -4831326.5883  4003934.2615                  ',
+     * 'APPROX POSITION XYZ'
+
+      write(lrn,'(a,a)')
+     * '        0.0000        0.0000        0.0000                  ',
+     * 'ANTENNA: DELTA H/E/N'
+
+      write(lrn,'(a,a)')
+     * '     2     0                                                ',
+     * 'WAVELENGTH FACT L1/2'
+
+      write(lrn,'(a,a)')
+     * '     2    L1    C1                                          ',
+     * '# / TYPES OF OBSERV'
+
+      write(lrn,'(a,a)')
+     * '     5.0000                                                 ',
+     * 'INTERVAL'
+
+      write(lrn,'(a,a)')
+     * 'Forced Modulo Decimation to 5 seconds                       ',
+     * 'COMMENT'
+
+      write(lrn,'(a,a)')
+     * ' SNR is mapped to RINEX snr flag value [1-9]                ',
+     * 'COMMENT'
+
+      write(lrn,'(a,a)')
+     * '  L1: 0 dBHz = 1; 32 dBHz = 5; 64 dBHz = 9                  ',
+     * 'COMMENT'
+
+*** enable header writing second part
+
+      lhdr=.true.
+
+      return
+      end
+      subroutine rinhd2(lrn,iyr,imo,idy,ihr,imn,sec,lhdr)
+
+*** rinex header
+
+      implicit double precision(a-h,o-z)
+      logical lhdr
+
+      write(lrn,'(5i6.2,f13.7,a,a)')
+     *  iyr,imo,idy,ihr,imn,sec,'     GPS         ',
+     * 'TIME OF FIRST OBS'
+
+      write(lrn,'(a,a)')
+     * '                                                            ',
+     * 'END OF HEADER'
+
+*** disable any more header writing
+
+      lhdr=.false.
+
+      return
+      end
+      integer function ll1phs(lstlok,oppsgn)
+
+*** ll1 rinex code for phase data  (assume A/S is always on)
+
+*********************************************************
+*** Loss of lock indicator (LLI). Range: 0-7
+***   0 or blank: OK or not known
+***   Bit 0 set : Lost lock between previous and
+***               current observation: cycle slip
+***               possible
+***   Bit 1 set : Opposite wavelength factor to the
+***               one defined for the satellite by a
+***               previous WAVELENGTH FACT L1/2 line.
+***               Valid for the current epoch only.
+***   Bit 2 set : Observation under Antispoofing
+***               (may suffer from increased noise)
+*** 
+***   Bits 0 and 1 for phase only.
+*********************************************************
+
+      implicit integer(a-z)
+      logical lstlok,oppsgn
+
+      ll1phs=0
+      if(lstlok) ll1phs=ll1phs+1
+      if(oppsgn) ll1phs=ll1phs+2
+
+*** assume A/S is always on
+
+      ll1phs=ll1phs+4
+
+      return
+      end
+      integer function mapsnr(isnr)
+
+*** map snr to rinex interval
+*** 0 dBHz = 1; 32 dBHz = 5; 64 dBHz = 9
+*** CMC snr is range 0..255
+
+      implicit double precision(a-h,o-z)
+
+      mapsnr = idnint(isnr/32.d0)+1
+
+      return
+      end
+      integer function mybyte(b)
+
+*** convert byte to integer
+
+      byte b
+
+      if(b.lt.0) then
+        mybyte=b+256
+      else
+        mybyte=b
+      endif
+      return
+      end
+***********************************************************************
+***
+*** carrier phase rollover handlers
+***
+      subroutine croini
+
+*** initialize carrier phase rollover handler
+
+      implicit double precision(a-h,o-z)
+      parameter(maxprn=32)
+      save /crotab/
+      common/crotab/phsx(maxprn),nros(maxprn)
+
+      do 1 i=1,maxprn
+      nros(i)=0
+      phsx(i)=0.d0
+    1 continue
+
+      return
+      end
+      subroutine crofix(iprn,phs)
+
+*** update carrier phase for rollover slips
+
+      implicit double precision(a-h,o-z)
+      parameter(idelc=1048576)
+      parameter(tol=dble(idelc*0.9d0))
+      parameter(maxprn=32)
+      save /crotab/
+      common/crotab/phsx(maxprn),nros(maxprn)
+
+      if(iprn.le.0.or.iprn.gt.maxprn) stop 98463
+
+*** detect new phase rollover
+
+      if((phs-phsx(iprn)).gt. tol) nros(iprn) = nros(iprn)-1
+      if((phs-phsx(iprn)).lt.-tol) nros(iprn) = nros(iprn)+1
+    
+*** store orig. phase and correct for rollover history
+
+      phsx(iprn)=phs
+      if(nros(iprn).ne.0) phs = phs + nros(iprn)*idelc
+
+      return
+      end
+***********************************************************************
+      subroutine sowciv(igwk,sow,iyr,imo,idy,ihr,imn,sec)
+
+*** convert gps week/seconds of week to civil
+
+      implicit double precision(a-h,o-z)
+      parameter(mjd6jan80=44244)
+
+*** fmjdg computation preserves digits
+
+      mjd  = igwk*7 + sow/86400.d0 + mjd6jan80
+      fmjd = dmod(sow,86400.d0)/86400.d0
+      call mjdciv(mjd,fmjd,iyr,imo,idy,ihr,imn,sec)
+
+      return
+      end
+      subroutine mjdciv(mjd,fmjd,iyr,imo,idy,ihr,imn,sec)
+
+*** convert modified julian date to civil date
+
+*** imo in range 1-12, idy in range 1-31
+*** only valid in range mar-1900 thru feb-2100
+*** ref: hofmann-wellenhof, 2nd ed., pg 34-35
+*** operation confirmed for leap years (incl. year 2000)
+
+      implicit double precision(a-h,o-z)
+
+      rjd=mjd+fmjd+2400000.5d0
+      ia=(rjd+0.5d0)
+      ib=ia+1537
+      ic=(ib-122.1d0)/365.25d0
+      id=365.25d0*ic
+      ie=(ib-id)/30.6001d0
+
+*** the fractional part of a julian day is fractional mjd + 0.5
+*** therefore, fractional part of julian day + 0.5 is fractional mjd
+
+      it1=ie*30.6001d0
+      idy=ib-id-it1+fmjd
+      it2=ie/14.d0
+      imo=ie-1-12*it2
+      it3=(7+imo)/10.d0
+      iyr=ic-4715-it3
+
+      tmp=fmjd*24.d0
+      ihr=tmp
+      tmp=(tmp-ihr)*60.d0
+      imn=tmp
+      sec=(tmp-imn)*60.d0
+
+      return
+      end
