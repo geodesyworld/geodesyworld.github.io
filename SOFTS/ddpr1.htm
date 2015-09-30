@@ -1,0 +1,271 @@
+<html>
+<head>
+<title>Double Difference Pseudorange (static)</title>
+</head>
+
+<META NAME="KEYWORDS" CONTENT="GPS, software, RINEX, double difference">
+
+<body background="whitep.gif" text="#000000" link="#0000ff" vlink="#551a8b" alink="#ff0000">
+
+<h2><strong>DOUBLE DIFFERENCE PSEUDORANGE, STATIC</strong></h2>
+
+<p>Dennis Milbert
+
+<pre>
+Updated:  2008-may-14
+</pre>
+
+<!-------     <br wp="br1"><br wp="br2">     ------>
+
+<p>The program, <em>ddpr1</em>, takes two RINEX files (both static), a precise orbit in
+SP3 format, a <em>pos</em> file of reference coordinates, and computes the position of 
+point 2 using single frequency (L1), double difference pseudoranges.
+
+<br wp="br1"><br wp="br2"><h3>Contents</h3>
+
+<ul>
+  <li><a href="#link0">Operation</a></li>
+  <li><a href="#link1">RINEX Format</a></li>
+  <li><a href="#link2">SP3 Format</a></li>
+  <li><a href="#link3"><em>pos</em> Format</a></li>
+  <li><a href="#link4">Residual File Format</a></li>
+  <li><a href="#link5">Shortcomings</a></li>
+  <li><a href="#linkx">Source Code and Binary Executable</a></li>
+  <li><a href="#linky">Links to Other Pages</a></li>
+  <li><a href="#linkz">To Contact Me</a></li>
+  <li><a href="index.html">Back To Home</a></li>
+</ul>
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link0"><hr>
+<p>Operation</a></h4>
+
+<p>The program operates in the DOS window.  Alternatively, you can simply
+run "ddpr1.exe" with a double click or with "Run..." in your "Start" menu.
+(I use the DOS window myself.)
+
+<p>Four files are needed for input.  Two files are generated as output.  
+The names are fixed.  The files must be in the subdirectory where you are
+working.
+
+<p>Input Files:
+
+<p><em>point1.rnx</em> -- ASCII, RINEX format.  This point is treated
+as a base station, and is considered known.
+
+<p><em>point2.rnx</em> -- ASCII, RINEX format.  This point is treated
+as the unknown station.
+
+<p><em>orbit.sp3</em> -- ASCII, SP3 format, precise orbit.
+
+<p><em>pos</em> -- ASCII, special format, described below.  This file holds
+reference coordinates for known stations.  For example, one could put 
+coordinates for local CORS stations in this file.  If ddpr1.exe doesn't
+find a 4 character ID in the <em>pos</em> file, it will use the coordinate
+in the RINEX header, instead.  But, while ddpr1.exe is not picky, it is 
+mandatory to have a <em>pos</em> file.
+
+<p>Output Files:
+
+<p><em>ddpr1.lst</em> -- ASCII, output listing.  This contains the coordinate solution
+of the L1 phase center and some statistics.
+
+<p><em>ddpr1.res</em> -- ASCII, residual listing.  These are the residuals, in the
+sense of observed-computed, for every satellite, every epoch.
+
+<p>Discussion:
+
+<p>The double difference pseudorange is something of a "classic" solution.
+The double difference cancels clock error in the GPS satellites (tiny) and
+in the GPS receivers (not tiny).  What's left is orbit error, atmospheric
+error, and local (multipath and noise).  Bottom line, double differences have 
+a slow increase in error when increasing station separation.  This makes double
+difference pseudorange superior to DGPS, and why some manufacturers use it
+as a post-processing option.  Precise orbits are very good, 
+leaving atmosphere error (iono and tropo) and multipath error in the residuals.
+
+<p>This version, <em>ddpr1</em>, is a static solution.  
+The data are scanned and a table is built of the reference (highest)
+satellites.  Then, the double differences are 
+grouped by PRN by writing and reading "scatter-gather" temporary files.
+Only 3 unknowns are solved, the location of point 2.  The solution iterates, 
+bypassing outlier observations.  Here is an example <a href="ddpr1.lst">ddpr1.lst</a>.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link1"><hr>
+<p>RINEX Format</a></h4>
+
+<p>The RINEX version 2.10 format (25jan2002) can be obtained from the 
+<a href="http://igscb.jpl.nasa.gov/newformats.html">International GPS Service</a>
+and the 8jun2001 version from the
+<a href="http://www.ngs.noaa.gov/CORS/rinex210.txt">National Geodetic Survey</a>.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link2"><hr>
+<p>SP3 Format</a></h4>
+
+<p>The program does require the precise orbit, <em>orbit.sp3</em>, to
+span the common RINEX data interval.  Since IGS distributes orbits with
+only 96 epochs/daily file, if you take data in the last 15 minutes of a
+GPS day, then the program will crash.  Either delete the last piece of 
+data, or get a 192 epoch, concatenated precise orbit from any 24 hour
+data retreival from the 
+<a href="http://www.ngs.noaa.gov/cgi-cors/ufcors2.prl">UFCORS</a>
+at the National Geodetic Survey.
+
+<p>Precise orbits are distributed in a format called SP3.
+The format is available from
+<a href="http://www.ngs.noaa.gov/GPS/SP3_format.html">NGS</a> and 
+<a href="sp3fmt.txt">here</a>.  If you need the orbits themselves, they are
+easy to get from NGS at their 
+<a href="http://www.ngs.noaa.gov/CORS/">CORS</a> site. 
+
+<p>Here is a sample <a href="igs10711.sp3.txt">igs10711.sp3</a> (316K) SP3 orbit.
+It is a precise orbit solution computed by the International GPS Service (IGS).
+(It was also concatenated with the next day's orbit.)
+Note that if there is an entry of "999999.999999" in the clock field, then that 
+satellite can't be used for that epoch.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link3"><hr>
+<p><em>pos</em> Format</a></h4>
+
+<p>This is a simple ASCII, flat file.  Two records per station.  
+The file name is very simple, "pos" -- no extention.  This file
+functions as a mini-database of authoritative coordinates.  The file is
+mandatory.  However, if a given station is not found in the <em>pos</em> file,
+then the RINEX header is used for station coordinates instead.
+
+<p>The format is a simple adaptation of the National Geodetic Survey "Blue Book"
+format.
+
+<pre>
+ASCII, 2 records per station.
+
+Record 1
+--------
+01-04  4 character station ID, case sensitive.  Must match ID in RINEX header
+05-06  blank
+07-10  *80*
+11-14  blank
+15-44  station name
+45-46  geodetic latitude, degrees            (corrected 2008may14)
+47-48     "        "    , minutes
+49-55     "        "    , units of 0.00001 arc-seconds
+56-56  (N/S) -- "N" positive north, "S" positive south
+57-59  geodetic longitude, degrees
+60-61     "         "    , minutes
+62-68     "         "    , units of 0.00001 arc-seconds
+69-69  (W/E) -- "W" positive west, "E" positive east
+
+Record 2
+--------
+01-06  blank
+07-10  *86*
+11-45  blank
+46-52  ellipsoidal height, units of millimeters
+   </pre>
+
+<p>Here is an example <a href="pos.txt"><em>pos</em> file</a>.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link4"><hr>
+<p>Residual File</a></h4>
+
+<p><em>ddpr1.res</em> is a simple ASCII, flat file.  One record per double
+difference residual.
+
+<pre>
+01-09  time, seconds past midnight, GPS time
+10-18  double difference pseudorange residual error, meters, (observed-computed)
+19-24  vertical angle, decimal degrees, positive up
+26-27  PRN of satellite 2 (see ddpr1.lst for table of reference satellites).
+</pre>
+
+<p>Here is a sample <a href="ddpr1.res.txt"><em>ddpr1.res</em></a>.  It was
+extracted from the first hour of results from the CORS stations MIA3 to AOML
+for 20jan2002.
+
+<p>This brings up the idea of plotting software to look at the residuals.  
+I like to use a Win32 version of "gnuplot 3.7",
+available at
+<a href="http://www.gnuplot.info">"gnuplot central"</a>.  
+It does have a learning curve, but it's freeware.  To help a little bit, here
+is an example gnuplot residual plot file, <a href="ddprres.plt">ddprres.plt</a>.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link5"><hr>
+<p>Shortcomings</a></h4>
+
+<p>This is "no frills" software.  There are no warranties of any sort.
+No Windows GUI.  Just the core function.
+
+<p>You must have the 4 input files with the names above.  The program will
+overwrite any existing "ddpr1.lst" or "ddpr1.res" files in the working directory.
+
+<p><em>ddpr1</em> is not careful about the antenna offsets between an ARP
+and the L1 phase center (or phase center variation with vertical angle).
+So, it should only be considered for use between L1 phase center 
+positions (note: <a href="#link3"><em>pos</em> file</a>).
+
+<p>The program does not currently apply any ionosphere
+correction, or a troposphere model.  Results will degrade with distance.
+Also, the double differences are treated as uncorrelated.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="linkx"><hr>
+<p>Source Code and Binary Executable</a></h4>
+
+<p>The Fortran source code is <a href="ddpr1.for.txt">ddpr1.for</a>.
+
+<p>The compiled executable (zipped) is <a href="ddpr1.zip">ddpr1.exe</a>.
+
+<p>Fixed a coordinate conversion bug for southern hemisphere (2005-sep-17).
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="linky"><hr>
+<p>Links to Other Pages</a></h4>
+
+<p>
+<p>Sources of RINEX GPS base station data and coordinates
+<ul>
+
+<p>National Geodetic Survey:
+<a href="http://www.ngs.noaa.gov/CORS/">National CORS</a>. 
+
+<p>International GPS Service:
+<a href="http://igscb.jpl.nasa.gov/components/data.html">IGS Data Holdings</a>. 
+
+</ul>
+
+<p>
+<p>Sources of SP3 GPS precise orbit data
+<ul>
+
+<p>National Geodetic Survey:
+<a href="http://www.ngs.noaa.gov/CORS/">National CORS</a>. 
+
+<p>International GPS Service:
+<a href="http://igscb.jpl.nasa.gov/components/prods_cb.html">IGS Products</a>. 
+
+</ul>
+
+<!-- ------------------------------------------------------------------ -->
+<br wp="br1"><br wp="br2"><h4><a name="linkz"><hr>
+<p>To Contact Me</a></h4>
+
+<p>My e-mail user name is the first initial of my first name
+followed by all the letters of my last name (see above).  My ISP is
+"comcast", and it is a "dot-net", not a "dot-com".  Sorry for not spelling
+out my e-mail address, but I try to keep the spam-bots
+from fingering me.  But, just so the spam-bots don't feel left
+out, they can always go to abuse@comcast.net
+
+<!-- ------------------------------------------------------------------ -->
+<br wp="br1"><br wp="br2"><hr>
+
+<p>
+<a href="index.html">Back To Home</a>
+
+</body>
+</html>

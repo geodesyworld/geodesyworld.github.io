@@ -1,0 +1,111 @@
+import java.io.*;
+import java.util.*;
+import javax.comm.*;
+
+public class GarNMEA2 implements SerialPortEventListener {
+
+//*** experiment with rs232 serial input
+
+   private InputStream        inputStream;
+   private SerialPort         sPort;
+
+   private int                bcount = 0;
+
+   static OutputStreamWriter  outW = null;
+   static CommPortIdentifier  portId;
+   static Enumeration         portList;
+
+   public static final String FILENAME = "nmeaout.txt";
+   public static final String PORTNAME = "COM1";
+   public static final int    BAUDRATE = 4800;
+   public static final int    TIMEOUT  = 2000;       //*** 2 seconds
+
+   public static void main(String[] args) {
+
+      GarNMEA2 g = new GarNMEA2();
+      g.mymain();               //*** real work done here  <===========<<<<<
+   }//*** endmain
+
+   void mymain(){
+
+//*** open output file
+
+       try {
+          outW = new OutputStreamWriter(
+                 new FileOutputStream (FILENAME));
+       }
+       catch (IOException e) {
+          System.err.println("Output file not opened\n" + e.toString());
+          System.exit(1);
+       } 
+
+//*** find the port and make the serial reader
+
+        portList = CommPortIdentifier.getPortIdentifiers();
+
+        while (portList.hasMoreElements()) {
+            portId = (CommPortIdentifier) portList.nextElement();
+            if (portId.getPortType() == CommPortIdentifier.PORT_SERIAL) {
+                if (portId.getName().equals(PORTNAME)) {
+
+//*****************************************************************************
+//*** open port, listen, set parms
+
+        try   {sPort = (SerialPort) portId.open("GarApp", TIMEOUT);} 
+        catch (PortInUseException e) {}
+
+        try   {inputStream = sPort.getInputStream();} 
+        catch (IOException e) {}
+
+	try   {sPort.addEventListener(this);} 
+        catch (TooManyListenersException e) {}
+
+        sPort.notifyOnDataAvailable(true);
+        try {
+           sPort.setSerialPortParams(BAUDRATE,
+                          SerialPort.DATABITS_8,
+                          SerialPort.STOPBITS_1,
+                          SerialPort.PARITY_NONE);
+           } 
+        catch (UnsupportedCommOperationException e) {}
+//*****************************************************************************
+
+                }
+            }
+        }//***endWhile
+
+   }//*** end mymain
+
+   public void serialEvent(SerialPortEvent event) {
+
+//*** handle serial port events, echo the data to screen
+
+      int  newData = 0;
+      char mybyte;
+
+      switch(event.getEventType()) {
+         case SerialPortEvent.BI:             //*** break
+         case SerialPortEvent.OUTPUT_BUFFER_EMPTY:
+            break;
+
+//*** read data until -1 is returned  (forever)
+
+	 case SerialPortEvent.DATA_AVAILABLE:
+            while(newData != -1) {
+               try {
+                  newData = inputStream.read();
+	          if (newData == -1) {break;}
+                  mybyte = (char)newData;
+                  outW.write(mybyte);
+//*************** System.out.print(""+mybyte);   //*** echo to screen (debug)
+                  bcount = bcount + 1;
+                  if(mybyte == '$') {System.out.print("\r"+bcount+" bytes");}
+               } catch(IOException ex) {
+                  System.err.println(ex);
+                  return;
+               }
+            }//***endWhile
+            break;
+      }//***endSwitch
+   }
+}//***endclass

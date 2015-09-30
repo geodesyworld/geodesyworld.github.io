@@ -1,0 +1,3297 @@
+//*** ppos.java
+
+//*** 2006 jul 28  2:15p
+
+import java.io.*;
+import java.text.*;
+import java.text.DecimalFormat;
+
+public class ppos {
+
+//*** read a Rinex obs file -- output point position in outfile
+
+//*** y2k code fails after 2079
+//*** assumes all gps,(no glonass or galileo), added S1/S2, sp3c, 8 dig.out
+//*** update condition for application of Tgd to clocks
+
+//*** debug -- add solid earth tide someday
+
+//*** globals
+
+   private static final double pi    = Math.PI;
+   private static final double gpspi = 3.1415926535898e0;  //*** exactly
+   private static final double RAD   = 180.0/Math.PI;      //*** radians to deg
+   private static final double sol   = 299792458.0;        //*** exactly
+   private static final double f1    = 1575.42e6;
+   private static final double f2    = 1227.60e6;
+   private static final double w1    = sol/f1;
+   private static final double w2    = sol/f2;
+   private static final double we    = 7.2921151467e-5;    //*** rad/sec
+   private static final double gm    =  3.986005e14;
+   private static final double bigf  = -4.442807633e-10;
+
+   private static final int    mxprn= 32;             //*** 38 are possible
+   private static final double dnull= 1.0e31;
+
+   private BufferedReader in      = null;                  //*** obs file
+   private BufferedReader in2     = null;                  //*** nav file
+   private BufferedReader inp     = null;                  //*** precise orbit
+   private BufferedWriter outBW   = null;
+   private Rinx           rinStuf = null;
+   private Gtime          tStuf   = null;
+   private Modes          myModes = null;
+
+//*** end of globals
+
+   public static void main( String args[] ){
+
+      ppos p = new ppos();
+      p.mymain();               //*** real work done here  <=======<<<<<
+
+   }//*** endmain
+//***********************************************************************
+   void mymain() {
+
+//*** do the deed!!!!!!!!!!!!!!!!!!!!
+//*** y2k code fails after 2079
+
+      String inFileName=null,in2FileName=null,inpFileName=null;
+      Pos    svPos,rxPos;
+      BCset  myBCS =null;
+      SP3set mySP3 =null;
+      RVec   myV   =null;
+
+      String  myString;
+      String  subField;
+      double  val;
+
+//*** get the Rinex file names
+
+      System.out.print("Enter the RINEX obs filename: ");
+
+      try {
+         inFileName=readln();              //*** read a line
+      }
+      catch (IOException e) {
+         System.err.println("error in input line ... \n" + e.toString());
+         System.exit(1);
+      }
+
+      System.out.print("Enter the RINEX nav filename: ");
+
+      try {
+         in2FileName=readln();              //*** read a line
+      }
+      catch (IOException e) {
+         System.err.println("error in input line ... \n" + e.toString());
+         System.exit(1);
+      }
+
+      rinStuf =new Rinx();               //*** rinex file parms
+      tStuf   =new Gtime();              //*** time handler
+      myModes =new Modes();              //*** mode handler
+
+//*** query for precise orbit
+
+      System.out.print("Precise orbit? : ");
+
+      try {
+         myString= readln();                     //*** read a line
+         subField = myString.substring(0, 1);
+         if(subField.equalsIgnoreCase("y")){
+            myModes.putpOrb(true);
+            System.out.print("Enter the SP3 orbit filename: ");
+            try {
+               inpFileName=readln();              //*** read a line
+            }
+            catch (IOException e) {
+               System.err.println("error in input line ... \n" + e.toString());
+               System.exit(1);
+            }
+         }else{
+            myModes.putpOrb(false);
+         }
+      }
+      catch (IOException e) {
+         System.err.println("error in input line ... \n" + e.toString());
+         System.exit(1);
+      }
+
+//*** open files
+
+      openFiles(inFileName, in2FileName, inpFileName);
+
+//*** query for frequency treatment
+
+      System.out.print("2 frequency?   : ");
+
+      try {
+         myString= readln();                     //*** read a line
+         subField = myString.substring(0, 1);
+         if(subField.equalsIgnoreCase("y")){
+            myModes.putdFreq(true);
+         }else{
+            myModes.putdFreq(false);
+         }
+      }
+      catch (IOException e) {
+         System.err.println("error in input line ... \n" + e.toString());
+         System.exit(1);
+      }
+
+//*** query for broadcast iono
+
+      if(!myModes.isdFreq()){
+         System.out.print("Broadcast ionosphere? : ");
+         try {
+            myString= readln();                     //*** read a line
+            subField = myString.substring(0, 1);
+            if(subField.equalsIgnoreCase("y")){
+               myModes.putbIon(true);
+            }else{
+               myModes.putbIon(false);
+            }
+         }
+         catch (IOException e) {
+            System.err.println("error in input line ... \n" + e.toString());
+            System.exit(1);
+         }
+      }
+
+//*** query for tropo model
+
+      System.out.print("Tropo?         : ");
+
+      try {
+         myString= readln();                     //*** read a line
+         subField = myString.substring(0, 1);
+         if(subField.equalsIgnoreCase("y")){
+            myModes.putTrop(true);
+         }else{
+            myModes.putTrop(false);
+         }
+      }
+      catch (IOException e) {
+         System.err.println("error in input line ... \n" + e.toString());
+         System.exit(1);
+      }
+
+//*** query for vert cutoff angle
+
+      System.out.print("Vert cut (deg) : ");
+
+      try {
+         myString= readln();                               //*** read a line
+         if(myString.length() <=0){
+            val=-1.0;
+         }else{
+            val = Double.valueOf(myString.trim()).doubleValue();
+            if(val >= 90.0) val=-1.0;
+            myModes.putvCut(val);
+         }
+      }
+      catch (IOException e) {
+         System.err.println("error in input line ... \n" + e.toString());
+         System.exit(1);
+      }
+
+//*** echo options
+
+      System.out.print("Options =");
+      if(myModes.isdFreq()) System.out.print("  2 freq");
+      if(myModes.isbIon() ) System.out.print("  b-iono");
+      if(myModes.isTrop() ) System.out.print("  tropo");
+      if(myModes.ispOrb() ) System.out.print("  precise");
+      System.out.println(".");
+
+//*** loop over all lines
+
+      rxPos = doObsHeader();             //*** ref. time and pos. set
+      rxPos.xyzgeo();
+      System.out.print  ("gla="   + (rxPos.getGlaGP()*RAD));
+      System.out.print  ("  glo=" + (rxPos.getGloGP()*RAD));
+      System.out.println("  eht=" +  rxPos.getEhtGP());
+
+      myBCS = new BCset(in2, tStuf);        //*** load nav file
+      in2=null;                             //*** close nav file
+
+      if(myModes.ispOrb()){
+         mySP3 = new SP3set(inp, tStuf);    //*** load precise orbit
+         inp=null;                          //*** close precise orbit
+      }
+
+      doObsData(rxPos, myBCS, mySP3);       //*** finish obs file
+      
+      try {outBW.flush();}
+      catch (IOException e) {
+         System.err.println("error in output flush");
+         System.exit(1);
+      }
+
+      in   =null;                        //*** close obs file
+      outBW=null;                        //*** close output file
+   }
+//***********************************************************************
+   private Pos doObsHeader(){
+
+//*** loop over obs file header
+
+      String myString;
+      String typeField;
+      Pos    rxPos=null;
+
+      try {
+         while( (myString=in.readLine()) != null ){
+            typeField=myString.substring(60,myString.length());
+            typeField=typeField.trim();
+
+            if( typeField.equals("# / TYPES OF OBSERV") ){
+               processTypes(myString);
+            }
+
+            else if( typeField.equals("TIME OF FIRST OBS") ){
+               processT0(myString);
+            }
+
+            else if( typeField.equals("APPROX POSITION XYZ") ){
+               rxPos = processXYZ(myString);               //*** for b-cast iono
+            }
+
+            else if( typeField.equals("END OF HEADER") ){
+               return rxPos;
+            }
+         }
+      } 
+      catch (IOException e) {
+         System.err.println("Error in copy\n" + e.toString());
+         System.exit(1);
+      }
+      return rxPos;
+   }
+
+   private void processTypes(String myString){
+
+//*** extract index for data types
+
+      String typeField;
+      int    ntypes;
+
+      typeField = myString.substring(0,6);
+      ntypes    = Integer.parseInt(typeField.trim());
+      rinStuf.putNdat(ntypes);
+
+//*** parse the data types
+
+      for(int i=1; i<=rinStuf.getNdat(); i++){
+         typeField = myString.substring(6*(i+1)-2, 6*(i+1));
+         rinStuf.putKind(typeField, i);
+      }
+   }
+
+   private void processT0(String myString){
+
+//*** extract start time
+
+      String typeField;
+      int    iyr,imo,idy,ihr,imn;
+      double sec;
+
+      typeField = myString.substring( 0, 6);
+      iyr       = Integer.parseInt(typeField.trim());
+
+      typeField = myString.substring( 6,12);
+      imo       = Integer.parseInt(typeField.trim());
+
+      typeField = myString.substring(12,18);
+      idy       = Integer.parseInt(typeField.trim());
+
+      typeField = myString.substring(18,24);
+      ihr       = Integer.parseInt(typeField.trim());
+
+      typeField = myString.substring(24,30);
+      imn       = Integer.parseInt(typeField.trim());
+
+      typeField = myString.substring(30,42);
+      sec       = Double.valueOf(typeField.trim()).doubleValue();
+
+//*** initialize mjd0
+
+      tStuf.setjd0(iyr, imo, idy);
+   }
+
+   private Pos processXYZ(String myString){
+
+//*** extract approx position
+
+      String typeField;
+      double x,y,z;
+
+      typeField = myString.substring( 0,14);
+      x         = Double.valueOf(typeField.trim()).doubleValue();
+
+      typeField = myString.substring(14,28);
+      y         = Double.valueOf(typeField.trim()).doubleValue();
+
+      typeField = myString.substring(28,42);
+      z         = Double.valueOf(typeField.trim()).doubleValue();
+
+      return new Pos(x, y, z);
+   }
+
+   private void doObsData(Pos rxPos, BCset myBCS, SP3set mySP3){
+
+//*** loop over remaining lines (obs file data)
+
+      String  myString;
+      String  subField;
+      int     iyr,imo,idy,ihr,imn;
+      int     nsats, iprn=0, iprnget=0, nobs;
+      double  ntot=0, nc1=0, nboth=0, nvmask=0, ndrop=0;
+      boolean lc1;                               //*** flag for count of c1's
+
+      double  sec,tsec,tsecx;
+      double  p1,p2,l1,l2,c1;
+      double  va;
+      RVec    myV;
+      PosD    newPos;                          //*** point positions/dop's
+
+//*** internal ordering P1,P2,L1,L2,C1,D1,D2,S1,S2 (1-9)
+
+      double data[]  = new double[10];         //*** store data (fortan index)
+      int    iprns[] = new int   [13];         //*** store prns (fortan index)
+      double p1s[]   = new double[13];         //*** store p1   (fortan index)
+      double p2s[]   = new double[13];         //*** store p2   (fortan index)
+      int    kprns[] = new int   [13];         //*** store kept prns(ftn indx)
+      double dval;
+
+//*** process the data
+
+      try {
+
+//*** loop over all the data records  (post-header)
+
+         while( (myString=in.readLine()) != null ){
+//*** handle stinking splice record pairs *************************************
+         if(!myString.substring(28,29).equals("4") &&
+            !myString.endsWith("COMMENT")             ){
+
+//*** epoch header processing here
+
+            subField = myString.substring( 0, 3);
+            iyr       = Integer.parseInt(subField.trim());
+            if     (iyr <  80) {iyr=iyr+2000;}                   //*** y2k
+            else if(iyr <= 99) {iyr=iyr+1900;}                   //*** fail 2080
+            else               {System.exit(1);}
+
+            subField = myString.substring( 3, 6);
+            imo       = Integer.parseInt(subField.trim());
+
+            subField = myString.substring( 6, 9);
+            idy       = Integer.parseInt(subField.trim());
+
+            subField = myString.substring( 9,12);
+            ihr       = Integer.parseInt(subField.trim());
+
+            subField = myString.substring(12,15);
+            imn       = Integer.parseInt(subField.trim());
+
+            subField = myString.substring(15,26);
+            sec       = Double.valueOf(subField.trim()).doubleValue();
+
+            tsec=tStuf.civjts(iyr, imo, idy, ihr, imn, sec);
+
+            subField = myString.substring(29,32);
+            nsats    = Integer.parseInt(subField.trim());
+
+//*** get sat prn's (note: assumes no glonass or galileo)
+
+            for (int i=1; i<=nsats; i++){
+               subField = myString.substring(3*i+30, 3*i+32);
+               iprns[i] = Integer.parseInt(subField.trim());
+            }
+
+//***** inner loop over sats  (data processing here)
+//***** check empty and 0.0 fields and store null (dnull) instead
+//***** internal ordering P1,P2,L1,L2,C1,D1,D2,S1,S2 (1-9)
+
+            nobs=0;
+            for (int i=1; i<=nsats; i++){
+               for (int icol=0; icol < 10; icol++){
+                  data[icol]=dnull;
+               }
+
+               myString=in.readLine();
+
+               if(myString.length() < 79)
+                  myString=new String(myString+getSpaces(80));
+
+               for (int icol=1; icol<=Math.min(5,rinStuf.getNdat()); icol++){
+                  subField = myString.substring(16*(icol-1), 16*(icol-1)+14);
+                  if(subField.equals("              ")){
+                     dval=dnull;
+                  }else{
+                     dval=Double.valueOf(subField.trim()).doubleValue();
+                  }
+                  data[rinStuf.getKind(icol)]=dval;
+               }
+//***** two-line data records
+               if(rinStuf.twoLine()){ 
+                  myString=in.readLine();
+
+                  if(myString.length() < 79)
+                     myString=new String(myString+getSpaces(80));
+
+                  for (int icol=6; icol<=rinStuf.getNdat(); icol++){
+                     subField = myString.substring(16*(icol-6), 16*(icol-6)+14);
+                     if(subField.equals("              ")){
+                        dval=dnull;
+                     }else{
+                        dval=Double.valueOf(subField.trim()).doubleValue();
+                     }
+                     data[rinStuf.getKind(icol)]=dval;
+                  }
+               }
+
+//***** internal ordering P1,P2,L1,L2,C1,D1,D2,S1,S2 (1-9)
+
+               p1=data[1];
+               p2=data[2];
+               c1=data[5];
+               ntot=ntot+1;
+               if(p1 >= dnull && c1 < dnull){ 
+                  p1=c1;                       //*** use c1 if no p1
+                  lc1=true;                    //*** increment nc1 if p2 present
+               }else{
+                  lc1=false;
+               }
+
+//*** must have p1 and p2 (if dual f.) (and be healthy)
+//*** test for vert angle cutoff
+
+               if( myBCS.BChealthy(iprns[i], tsec) ){   //*** healthy?
+
+                  if((!myModes.isdFreq() && p1 < dnull)  ||
+                     ( myModes.isdFreq() && p1 < dnull && p2 < dnull) ){
+
+                     if(myBCS.BCcutoff(iprns[i], tsec, rxPos,myModes,mySP3) ){
+                        nvmask=nvmask+1;                //*** running sum
+                     }else{
+                        nobs=nobs+1;
+                        nboth=nboth+1;                  //*** running sum
+                        if(lc1) nc1=nc1+1;              //*** running sum
+                        p1s[nobs]   = p1;
+                        p2s[nobs]   = p2;
+                        kprns[nobs] = iprns[i];
+                     }
+                  }
+
+//*** diagnostic print -- could delete 'else' clause if convenient
+
+               }else{
+//*********       System.out.println("ill= " + iprns[i] + "   " + tsec);
+               }
+            }//***endfor  (inner loop over sats)
+
+            if(nobs > 3){
+               newPos=myBCS.p1xyz(nobs, p1s, p2s, kprns, tsec, rxPos, myModes,
+                                  mySP3);
+               putOut02(outBW, tsec, nobs, newPos);
+            }else{
+               ndrop=ndrop+nobs;
+            }
+
+         }//*** endif (handles obs comments)
+         }//***endwhile  (outer loop over all epochs)
+      } 
+      catch (IOException e) {
+         System.err.println("Error-- IO \n" + e.toString());
+         System.exit(1);
+      }
+      System.out.println("input="+ntot+"  c1="+nc1+"  both="+nboth+
+                         "  vmask="+nvmask+"  drop="+ndrop);
+   }
+
+   private void putOut01(BufferedWriter outBW, int iprn, double p1, double va){
+
+//*** output pseudorange data
+
+      String iprS, p1S, vaS, myStr;
+
+      try {
+         iprS = colInt   (iprn,   2);
+         p1S  = colDouble(p1,     8, 3);
+         vaS  = colDouble(va*RAD, 2, 2); 
+
+         myStr=""+iprS+" "+p1S+" "+vaS;
+         outBW.write(myStr, 0, myStr.length());
+         outBW.newLine();
+      }
+      catch (IOException e) {
+         System.err.println("Output fail\n" + e.toString());
+         System.exit(1);
+      } 
+   }
+
+   private void putOut02(BufferedWriter outBW, double tsec, int nobs, 
+                         PosD newPos){
+
+//*** output time tag
+
+      double eht;
+      String tsecS, nobS, glaS, gloS, ehtS, pdopS, hdopS, vdopS, myStr;
+
+      newPos.xyzgeoD();
+
+//*** sanity check
+
+      eht = newPos.getEhtGPD();
+      if(eht < -9999.0 || eht > 9999.0) return;
+
+      try {
+         tsecS = colDouble(tsec, 6, 3);
+         nobS  = colInt   (nobs, 2);
+
+//*** added digits to output
+         glaS  = colDouble(newPos.getGlaGPD()*RAD, 3, 8);
+         gloS  = colDouble(newPos.getGloGPD()*RAD, 4, 8);
+//****** glaS  = colDouble(newPos.getGlaGPD()*RAD, 3, 6);
+//****** gloS  = colDouble(newPos.getGloGPD()*RAD, 4, 6);
+         ehtS  = colDouble(newPos.getEhtGPD(),     5, 4);
+         pdopS = colDouble(newPos.getpdopPosD(),   2, 1);
+         hdopS = colDouble(newPos.gethdopPosD(),   2, 1);
+         vdopS = colDouble(newPos.getvdopPosD(),   2, 1);
+
+         myStr = ""+tsecS+" "+nobS+"  "+glaS+"  "+ gloS+"  "+ehtS+
+               "  "+pdopS+"  "+hdopS+"  "+vdopS;
+         outBW.write(myStr, 0, myStr.length());
+         outBW.newLine();
+      }
+      catch (IOException e) {
+         System.err.println("Output fail\n" + e.toString());
+         System.exit(1);
+      } 
+   }
+
+   private String colInt(int ival, int icols){
+
+//*** format an integer
+
+      String        ivalS;
+      StringBuffer  ivalSB;
+
+      NumberFormat  myF = NumberFormat.getNumberInstance();
+      FieldPosition myFP= new FieldPosition(NumberFormat.INTEGER_FIELD);
+
+      myF.setMaximumIntegerDigits(icols);
+      myF.setMinimumIntegerDigits(1);
+      myF.setMaximumFractionDigits(0);
+      myF.setMinimumFractionDigits(0);
+      myF.setGroupingUsed(false);
+
+      ivalSB= myF.format(ival, new StringBuffer(), myFP);
+      return  getSpaces(icols-myFP.getEndIndex()) + ivalSB; 
+   }
+
+   private String colDouble(double val, int icols, int idec){
+
+//*** format a double for integer and fractional parts
+
+      String        valS;
+      StringBuffer  valSB;
+
+      NumberFormat  myF = NumberFormat.getNumberInstance();
+      FieldPosition myFP= new FieldPosition(NumberFormat.INTEGER_FIELD);
+
+      myF.setMaximumIntegerDigits(icols);
+      myF.setMinimumIntegerDigits(1);
+      myF.setMaximumFractionDigits(idec);
+      myF.setMinimumFractionDigits(idec);
+      myF.setGroupingUsed(false);
+
+      valSB = myF.format(val, new StringBuffer(), myFP);
+      return  getSpaces(icols-myFP.getEndIndex()) + valSB; 
+   }
+
+   public static String getSpaces(int n){
+
+//*** routine to build a string with a given number of spaces
+
+      StringBuffer sb = new StringBuffer(n);
+
+      for(int i=0; i<n; i++) sb.append(' ');     //*** accum spaces in buffer
+      return sb.toString();
+   }
+
+   private void openFiles(String  inFileName, String in2FileName,
+                          String inpFileName                    ){
+      try {
+         in    = new BufferedReader(
+                 new InputStreamReader(new FileInputStream (inFileName)));
+         in2   = new BufferedReader(
+                 new InputStreamReader(new FileInputStream (in2FileName)));
+         outBW = new BufferedWriter(new OutputStreamWriter(
+                 new FileOutputStream ("outfile")));
+
+//*** precise orbit is optional
+
+         if(inpFileName == null){
+            inp = null;
+         }else{
+            inp   = new BufferedReader(
+                    new InputStreamReader(new FileInputStream (inpFileName)));
+         }
+      }
+      catch (IOException e) {
+         System.err.println("Files not opened\n" + e.toString());
+         System.exit(1);
+      } 
+   }
+
+   private String readln() throws IOException{
+
+//*** read a line from input -- convert to String
+//*** warning -- logic for DOS only!!!
+
+      char    ca[] = new char [200];          //*** store the characters
+      int     n=0;                            //*** length of string
+
+eol:  {
+         boolean lcr;                         //*** last char was "cr"
+         for(int i=0; i<ca.length; ++i){
+            char c=(char)System.in.read();    //*** read a character
+            if(c == '\n'){
+               lcr=false;
+               break eol;                     //*** end of line -- break
+            }else if(c == '\r'){
+               lcr=true;
+            }else{
+               lcr=false;
+               ca[n]=c;                       //*** store character
+               n=n+1;                         //*** count them
+            }
+         }
+      }//*** end eol label
+
+//*** convert n chars of array to String
+
+      return new String(ca,0,n);
+   }
+}
+//****************************************************************************
+class Rinx {
+
+//*** Rinex File class -- Rinx
+
+   private int ndat=0;   //*** number of data types
+
+//*** internal ordering P1,P2,L1,L2,C1,D1,D2,S1,S2 (0-8)
+
+   private static final String Kinds[]={"P1","P2","L1","L2","C1","D1","D2","S1","S2"};
+   private static final int    maxKind=9;
+   private int icols[] = new int[maxKind+1];        //*** index (fortran-subscripts)
+
+//*** methods
+
+   public         Rinx()         {}                  //*** constructor
+   public void    putNdat(int i) {
+      if(i <= 0 || i > maxKind){
+         System.err.println("Error--Rinx.putNdat()");
+         System.err.println("Error--range error =" + i);
+         System.exit(1);
+      }
+      ndat=i;
+   }
+   public int     getNdat()      {return ndat;}
+   public boolean twoLine()      {return ndat>=6;}   //*** 2 lines/obs
+
+//*** data kind methods
+
+   public int  getKind(int i) {return icols[i];}
+
+   public void putKind(String Kind, int icol){
+
+//*** routine to place column indicies (returns internal order index)
+//*** note: columns follow fortran indexing
+
+      int ival=-1;
+my1:  for (int i=0; i<Kinds.length; i++){
+         if(Kind.equals(Kinds[i])){
+            ival=i+1;                    //*** convert to fortran index
+            break my1;
+         }
+      }//***endfor
+
+      if(ival == -1){
+         System.err.println("Error--Rinx.putKind()");
+         System.err.println("Error--Rinex data kind =" + Kind);
+         System.exit(1);
+      }
+      icols[icol]=ival;             //*** map column to kind  
+   }
+}//***endclass Rinx
+//************************************************************************
+class BCset {
+
+//*** collection of broadcast orbits object
+
+   private static final int    mxprn = 32;         //*** 38 are possible
+   private static final int    mxtrw = 48;         //*** time rows (2-3 days)
+
+   private static final double sol   = 299792458.0;        //*** exactly
+   private static final double we    = 7.2921151467e-5;    //*** rad/sec
+   private static final double gpspi = 3.1415926535898e0;  //*** exactly
+   private static final double RAD   = 180.0/Math.PI;      //*** radians to deg
+
+   private Gtime  tStuf;
+   private BCstuf allBC[][] = new BCstuf[mxprn+1][mxtrw+1]; //*** fortran style
+   private int    nrwBC[]   = new int   [mxprn+1];    
+
+   private static final double GAMMA = (77.0/60.0)*(77.0/60.0);
+   private static final double GAMMA1= 1.0 - GAMMA;
+
+//*** broadcast ionosphere stuff
+
+   private boolean BCSiono = false;
+   private double alfa1 = 0.0;
+   private double alfa2 = 0.0;
+   private double alfa3 = 0.0;
+   private double alfa4 = 0.0;
+   private double beta1 = 0.0;
+   private double beta2 = 0.0;
+   private double beta3 = 0.0;
+   private double beta4 = 0.0;
+
+//*** tropo object
+
+   private Met myMet;
+
+//*** global (kludge -- don't want an extra lookup function right now)
+
+   private double bcclok;    //*** broadcast sv clock corrector  (ltloop)
+
+//*** constructor
+
+   public BCset(BufferedReader in, Gtime tStufIn) {
+      for(int i=0; i<=mxprn; ++i) {nrwBC[i]=0;}         //*** empty rows
+      tStuf=tStufIn;
+      myMet = new Met();
+      doNavHeader(in);                                   //*** nav file header
+      doNavData(in);
+   }
+
+//***
+//*** load methods only accessed thru constructor
+//***
+
+   private void doNavData(BufferedReader in){
+
+//*** loop over nav file data
+
+      String myString;
+      String typeField;
+      int    icount;
+      int    myprn;
+      double delt;
+      BCstuf myBC;
+
+//*** loop until end of file
+
+      icount=0;
+      try {
+         while( (myString=in.readLine()) != null ){
+            icount=icount+1;
+            myBC=readEntry(in,myString,icount);
+            myprn=myBC.gBCprn();
+            if(nrwBC[myprn] == mxtrw){
+               System.err.println("Array overflow in doData():"+myprn);
+               System.exit(1);
+            }
+
+//*** remaining logic to load array
+//*** load unhealthy sats (i.e. no health check)
+
+            if(nrwBC[myprn] == 0){                  //*** first entry for prn
+               nrwBC[myprn]++;
+               allBC[myprn][nrwBC[myprn]]=myBC;
+            }else{
+               delt = myBC.gBCjts() - allBC[myprn][nrwBC[myprn]].gBCjts();
+
+               if(Math.abs(delt) < 1.0){             //*** duplicate
+                  allBC[myprn][nrwBC[myprn]]=myBC;   //*** no increment/overwrite
+
+               }else if(Math.abs(delt) > 1800.0){    //*** normal update
+                  nrwBC[myprn]++;
+                  allBC[myprn][nrwBC[myprn]]=myBC;
+
+//*** supress close updates (1/2 hour)
+
+               }else{                                //*** these got preempted
+                  //*** null action                  //*** e.g. --> 16 sec.
+               }
+            }//*** endelseif (not first entry)
+
+         }//*** endwhile
+      }//*** endtry
+      catch (IOException e) {
+         System.err.println("Error in data read\n" + e.toString());
+         System.exit(1);
+      }
+   }
+
+   private BCstuf readEntry(BufferedReader in, String myString, int myid) 
+                                 throws IOException {
+
+//*** process first string and 7 remaining lines
+
+      BCstuf myBC = new BCstuf(myid);
+      myBC.put0BC(myString, myid, tStuf);
+
+      myString=in.readLine();
+      myBC.put1BC(myString);
+
+      myString=in.readLine();
+      myBC.put2BC(myString);
+
+      myString=in.readLine();
+      myBC.put3BC(myString);
+
+      myString=in.readLine();
+      myBC.put4BC(myString);
+
+      myString=in.readLine();
+      myBC.put5BC(myString);
+
+      myString=in.readLine();
+      myBC.put6BC(myString);
+
+      myString=in.readLine();
+      myBC.put7BC(myString);
+
+      return myBC;
+   }
+
+   private void doNavHeader(BufferedReader in){
+
+//*** loop over nav file header
+
+      String myString;
+      String typeField;
+      String subField;
+
+//*** loop until header end detected
+
+      try {
+         while( (myString=in.readLine()) != null ){
+            typeField=myString.substring(60,myString.length());
+            typeField=typeField.trim();
+            if(typeField.equals("ION ALPHA")) {
+               subField = myString.substring( 2, 14).replace('D','e');
+               alfa1    = Double.valueOf(subField.trim()).doubleValue();
+
+               subField = myString.substring(14, 26).replace('D','e');
+               alfa2    = Double.valueOf(subField.trim()).doubleValue();
+
+               subField = myString.substring(26, 38).replace('D','e');
+               alfa3    = Double.valueOf(subField.trim()).doubleValue();
+
+               subField = myString.substring(38, 50).replace('D','e');
+               alfa4    = Double.valueOf(subField.trim()).doubleValue();
+
+               BCSiono = true;
+            }
+            if(typeField.equals("ION BETA")) {
+               subField = myString.substring( 2, 14).replace('D','e');
+               beta1    = Double.valueOf(subField.trim()).doubleValue();
+
+               subField = myString.substring(14, 26).replace('D','e');
+               beta2    = Double.valueOf(subField.trim()).doubleValue();
+
+               subField = myString.substring(26, 38).replace('D','e');
+               beta3    = Double.valueOf(subField.trim()).doubleValue();
+
+               subField = myString.substring(38, 50).replace('D','e');
+               beta4    = Double.valueOf(subField.trim()).doubleValue();
+
+               BCSiono = true;
+            }
+            if(typeField.equals("END OF HEADER")) {return;}
+         }
+      } 
+      catch (IOException e) {
+         System.err.println("Error in copy\n" + e.toString());
+         System.exit(1);
+      } 
+   }
+
+//***
+//*** ionosphere methods
+//***
+
+   public boolean hasBCSiono() {return BCSiono;}
+
+   public double l1BCion(double tr, RVec myV, Pos rxPos){
+
+//*** broadcast iono (c.v. icd-200)
+
+//*** input time:    seconds of ut (or gps time of day)      (machts nicht)
+//*** output:        l1 time delay in seconds
+
+      double az, vas, glas, glos;
+      double psi, glai, gloi, glam, tlocal, f, amp, per, x, delay;
+
+//*** divide by pi to convert radians to semicircles
+
+      myV.xyzlhs(rxPos);
+      az   = myV.getAzRV();               //*** radians here
+      vas  = myV.getVaRV()/gpspi;
+      glas = rxPos.getGlaGP()/gpspi;
+      glos = rxPos.getGloGP()/gpspi;
+
+      psi  = 0.0137/(vas+0.11)-0.022;
+      glai = glas+psi*Math.cos(az);
+      if(glai < -0.416) glai = -0.416;
+      if(glai >  0.416) glai =  0.416;
+      gloi = glos+psi*Math.sin(az)/Math.cos(glai*gpspi);
+      glam = glai+0.064*Math.cos((gloi-1.617)*gpspi);
+
+//*** local time from gps or ut time
+
+      tlocal=43200.0*gloi+tr;
+      if(tlocal <      0.0) tlocal=tlocal+86400.0;
+      if(tlocal >= 86400.0) tlocal=tlocal-86400.0;
+
+//*** magnification factor, amplitude, and period
+
+      f=1.0+16.0*(0.53-vas)*(0.53-vas)*(0.53-vas);     //*** obliquity
+
+      amp=alfa1               +
+          alfa2*glam          +
+          alfa3*glam*glam     +
+          alfa4*glam*glam*glam;
+      if(amp < 0.0) {
+//*******System.out.println("amp limit="+amp);
+         amp=0.0;
+      }
+
+      per=beta1               +
+          beta2*glam          +
+          beta3*glam*glam     +
+          beta4*glam*glam*glam;
+      if(per < 72000.0) per=72000.0;
+ 
+      x=2.0*gpspi*(tlocal-50400.0)/per;
+
+      delay=f*5.0e-9;
+
+      if(Math.abs(x) < 1.57)
+                     delay = delay + f*amp*( 1.0 - (x*x/2.0) + (x*x*x*x/24.0));
+      return delay;
+   }
+
+//***
+//*** compute methods
+//***
+
+   public boolean BCcutoff (int prn, double tr, Pos rxPos, Modes myModes, 
+                            SP3set mySP3) {
+      
+//*** find vert angle and test on cutoff
+
+//*** (debug)streamline -- forget light loop
+
+      boolean losat;
+      RVec   myV;
+
+      myV = ltloop(prn, tr, rxPos, myModes, mySP3);
+      myV.xyzlhs(rxPos);
+
+//*** cutoff in degrees
+
+      if (myV.getVaRV()*RAD < myModes.getvCut()) {
+         losat=true;
+      }else{
+         losat=false;
+      }
+
+      return losat;
+   }
+
+   public PosD p1xyz(int nobs, double p1s[], double p2s[], int prns[], 
+                     double tr, Pos rxPos, Modes myModes, SP3set mySP3) {
+      
+//*** solve for xyz given p1 observations
+//***     tr is time at receiver
+//***     code not iterative -- bad sats kept  (debug?enhance?)
+//***     mySP3 may be null if not precise orbit mode
+
+      int    prn;
+      double p1,p2,p0,dx,dy,dz,wt,cmo;
+      double pdop,hdop,vdop;
+      RVec   myV;
+
+      int nunk=4;
+
+//*** initialize arrays and normals           (fortran indexing)
+
+      double an[][] = new double [nunk+1][nunk+1];       //*** normals
+      double u[]    = new double [nunk+1];               //*** right hand side
+      double x[]    = new double [nunk+1];               //*** unknowns
+      double c[]    = new double [nunk+1];               //*** a-matrix coeff.
+      int    ic[]   = new int    [nunk+1];               //*** coeff. indicies
+      double ro[][] = new double [   3+1][nunk+1];       //*** rot.mat for dop's
+      double dp[][] = new double [   3+1][   3+1];       //*** l.h.s. dop's
+
+      if(!Matrix.nitial(an, u)){
+         System.err.println("Failed to initialize normals");
+         System.exit(1);
+      }
+
+      for(int i=1; i<ic.length; i++){ ic[i]=i; }    //*** monotonic increase
+
+//*** accumulate normals
+
+      wt   = 1.0;
+      c[4] = 1.0;                            //*** clock in units of meters
+
+      for(int i=1; i<=nobs; i++){
+         prn  = prns[i];
+         if(myModes.isdFreq()){
+            myV = ltloop(prn, tr, rxPos, myModes, mySP3);
+            p1  = p1s[i]+sol*bcclok;           //*** correct p/r sv clock error
+            p2  = p2s[i]+sol*bcclok;           //*** correct p/r sv clock error
+            p1  = (p2-GAMMA*p1)/GAMMA1;        //*** iono correction
+ 
+         }else if(myModes.isbIon()){
+            myV = ltloop(prn, tr, rxPos, myModes, mySP3);
+            p1  = p1s[i]+sol*bcclok;           //*** correct p/r sv clock error
+            p1  = p1    -sol*l1BCion(tr,myV,rxPos);       //*** iono correction
+
+         }else{
+            myV  = ltloop(prn, tr, rxPos, myModes, mySP3);
+            p1   = p1s[i]+sol*bcclok;         //*** correct p/r sv clock error
+         }
+         if(myModes.isTrop()){
+            myV.xyzlhs(rxPos);
+            p1=p1-myMet.tropdelay(rxPos.getGlaGP(), rxPos.getEhtGP(),
+                                  myV.getVaRV(), tr, tStuf);
+         }
+         dx   = myV.getPxRV();
+         dy   = myV.getPyRV();
+         dz   = myV.getPzRV();
+         p0   = myV.getRhoRV();
+         cmo  = p0-p1;
+         c[1] = -dx/p0;
+         c[2] = -dy/p0;
+         c[3] = -dz/p0;
+
+         if(!Matrix.normal(an, u, c, ic, cmo, wt, nunk)){
+            System.err.println("Failed to accumulate normals");
+            System.exit(1);
+         }
+      }
+
+//*** solve normals
+
+      if(!Matrix.nfill(an)){
+         System.err.println("Failed to fill lower triangle of normals");
+         System.exit(1);
+      }
+
+      if(!Matrix.invert(an)){
+         System.err.println("Failed to invert normals");
+         System.exit(1);
+      }
+
+      if(!Matrix.av(an, u, x)){
+         System.err.println("Failed to solve normals");
+         System.exit(1);
+      }
+
+//*** dop's
+
+      pdop = Math.sqrt(an[1][1]+an[2][2]+an[3][3]);              //*** pdop
+      if(pdop > 99.9) pdop=99.9;                                 //*** limit
+
+      ro = rxPos.rotmat();                                       //*** geo->lhs
+
+      hdop = Math.sqrt(Matrix.rcrt(Matrix.rowcopy(ro,1), an)
+                      +Matrix.rcrt(Matrix.rowcopy(ro,2), an));
+      if(hdop > 99.9) hdop=99.9;                                 //*** limit
+
+      vdop = Math.sqrt(Matrix.rcrt(Matrix.rowcopy(ro,3), an));
+      if(vdop > 99.9) vdop=99.9;                                 //*** limit
+
+//*** apply to a priori estimate
+
+      return new PosD(rxPos.getxPos()-x[1],
+                      rxPos.getyPos()-x[2],
+                      rxPos.getzPos()-x[3],
+                      pdop, hdop, vdop);
+   }
+
+   public RVec ltloop(int prn, double tr, Pos rxPos, Modes myModes, 
+                      SP3set mySP3){
+      
+//*** solve light loop for a given prn and receiver
+//***     tr is time at receiver
+//***     mySP3 may be null if not precise orbit
+
+      double ttbar,tt,dt,sag,rho,dtr;
+      double px,py,pz;
+      PosT   svPos=null;
+
+//*** iterate the light loop a fixed number of times  (2 for +/- 0.01 mm)
+
+      dt=0.075;                                  //*** approx transit time
+      for(int i=0; i<2; i++){
+
+//*** compute broadcast position  (incl. clock corrn.)
+
+         svPos=BCpos(prn, tr-dt, myModes);
+
+//*** range vector
+
+         px = svPos.getxPosT() - rxPos.getxPos();
+         py = svPos.getyPosT() - rxPos.getyPos();
+         pz = svPos.getzPosT() - rxPos.getzPos();
+
+         rho=Math.sqrt(px*px + py*py + pz*pz);
+         dt=rho/sol;                             //*** updated transit time
+      }
+      sag=we*dt;                                 //*** apply sagnac effect
+      bcclok = svPos.getdtPosT();                //*** bcclok is a global
+
+//*** precise orbit -- override broadcast position and clock
+
+      if( myModes.ispOrb() ) {
+         if(mySP3.oterp(prn, tr-dt)){
+            svPos.putxPosT ( mySP3.gSP3x() );         //*** update sat pos
+            svPos.putyPosT ( mySP3.gSP3y() );
+            svPos.putzPosT ( mySP3.gSP3z() );
+            dtr = svPos.getdtrPosT();                 //*** relativistic
+            svPos.putdtPosT( mySP3.gSP3t() + dtr);    //*** sat clock + relativ
+            bcclok = svPos.getdtPosT();               //*** bcclok is a global
+         }
+      }
+
+      return new RVec(svPos.getxPosT() + sag*svPos.getyPosT() - rxPos.getxPos(),
+                      svPos.getyPosT() - sag*svPos.getxPosT() - rxPos.getyPos(),
+                      svPos.getzPosT()                        - rxPos.getzPos());
+   } 
+
+   public boolean BChealthy (int prn, double tsec) {
+      
+//*** find health of broadcast orbit (BC) for a prn and time
+
+      int mydx;
+      boolean healthy;
+
+      mydx=locBC(prn, tsec);               //** look up row in BC table
+      if(mydx <= -1){
+         System.err.println("Index prob in BCpos() " + prn + "  " + tsec);
+         System.exit(1);
+      }
+
+//*** lookup health
+
+      if (allBC[prn][mydx].gBCsvhl() > 0.0) {
+         healthy=false;
+      }else{
+         healthy=true;
+      }
+
+      return healthy;
+   }
+
+   public PosT BCpos (int prn, double tsec, Modes myModes) {
+      
+//*** compute pos of broadcast orbit (BC) for a prn and time
+
+      int mydx=locBC(prn, tsec);               //** look up row in BC table
+      if(mydx <= -1){
+         System.err.println("Index prob in BCpos() " + prn + "  " + tsec);
+         System.exit(1);
+      }
+
+//*** convert jts time to sow and compute broadcast position
+
+      return allBC[prn][mydx].bcxyzt(tStuf.jtssow(tsec), myModes);
+   }
+
+   public int locBC(int prn, double tsec) {
+
+//*** return index to BC array, lookup using jts time (seconds)
+//*** returns index of nearest jts version of t0c
+
+      int mxrow;
+
+      try {
+        if(tsec <= allBC[prn][ 1   ].gBCjts()){ return 1; }      //*** first row
+      }
+      catch (NullPointerException e) {
+         System.err.println("PRN " + prn + " not found in the nav file.");
+         System.exit(1);
+      }
+      mxrow = nrwBC[prn];
+      if(tsec >= allBC[prn][mxrow].gBCjts()){ return mxrow; }  //*** last row
+
+//*** increment until upper point passes the given time
+
+      for(int i=1; i<=mxrow-1; ++i) {
+         if(allBC[prn][i+1].gBCjts() >= tsec){
+            if(Math.abs(tsec-allBC[prn][i  ].gBCjts())  < 
+               Math.abs(tsec-allBC[prn][i+1].gBCjts()))  { return i; }
+            else                                         { return i+1; }
+         }
+      }
+
+//*** fell thru loop -- not allowed
+
+      System.err.println("Loop prob in locBC() " + prn + "  " + tsec);
+      System.exit(1);
+      return -1;
+   }
+}
+//************************************************************************
+class BCstuf {
+
+//*** broadcast orbit object
+
+   private static final double gm    =  3.986005e14;
+   private static final double we    =  7.2921151467e-5;        //*** rad/sec
+   private static final double gpspi =  3.1415926535898e0;
+   private static final double bigf  = -4.442807633e-10;
+
+   private int    id;         //*  my id (just a serial number)
+   private double jts;        //*  my time for lookup index
+   private int    prn;        //*  prn id
+
+//*** clock parameters
+
+   private double t0c;     //*  clock corrector reference epoch            (s)
+   private double af0;     //*  clock offset                               (s)
+   private double af1;     //*  clock error rate                          (s/s)
+   private double af2;     //*  clock error accelleration              (s/(s*s))
+
+//*** kepler elements
+
+   private double t0e;     //*  reference epoch of ephemeris             (sow)
+   private double sqrta;   //*  square root of semimajor axis           sqrt(m)
+   private double e;       //*  eccentricity
+   private double eye0;    //*  inclination at ref. epoch                  (r)
+   private double omg0;    //*  right ascension of asc. node at ref. epoch (r)
+   private double w;       //*  argument of perigee                        (r)
+   private double em0;     //*  mean anomaly at ref. epoch                 (r)
+
+//*** perturbation parameters
+
+   private double deln;    //*  mean motion difference from computed value (r/s)
+   private double eyedot;  //*  rate of change of inclination              (r/s)
+   private double omgdot;  //*  rate of change of right ascension          (r/s)
+
+   private double cuc;     //*  cosine harmonic correction to arg. of lat. (r)
+   private double cus;     //*  sine harmonic correction to arg. of lat.   (r)
+   private double crc;     //*  cosine harmonic correction to radius       (m)
+   private double crs;     //*  sine harmonic correction to radius         (m)
+   private double cic;     //*  cosine harmonic correction to inclination  (r)
+   private double cis;     //*  sine harmonic correction to inclination    (r)
+
+//*** other data 
+
+   private double iode;    //*  issue of data ephemeris
+   private double l2cd;    //*  codes on l2 channel (binary, 01-p, 10-c/a)
+   private double wkno;    //*  gps week # (to go with toe)               (wk)
+   private double l2pd;    //*  l2 p data flag (binary, 0-norm, 1-set off)
+   private double svac;    //*  URA index (converted)                      (m)
+   private double svhl;    //*  sv health    (6 bits, 0-ok, 1-not)
+   private double tgd;     //*  est. group delay   (tsv-tgd)               (s)
+   private double iodc;    //*  issue of data clock
+   private double tot;     //*  transmission time of message             (sow)
+
+//*****
+//***** methods
+//*****
+
+   public BCstuf(int myid)   {id=myid;}
+   public int    getBC()    {return id;}
+   public double gBCjts()   {return jts;}
+   public String toString() {return "" + id;}
+
+   public int    gBCprn()   {return prn;}
+   public double gBCt0c()   {return t0c;}
+   public double gBCt0e()   {return t0e;}
+   public double gBCwkno()  {return wkno;}
+   public double gBCsvac()  {return svac;}
+   public double gBCsvhl()  {return svhl;}
+   public double gBCtot()   {return tot;}
+
+//*****
+//***** load methods
+//*****
+
+   public void put0BC(String myString, int myid, Gtime tStuf) {
+
+//*** load record (epoch and clock)
+//*** y2k code fails after 2079
+
+//*** clock parameters
+
+      String subField;
+      int     iyr,imo,idy,ihr,imn;
+      double  sec,tsec;
+
+      subField = myString.substring( 0,  2);
+      prn      = Integer.parseInt(subField.trim());
+
+      subField = myString.substring( 2,  5);
+      iyr      = Integer.parseInt(subField.trim());
+      if     (iyr <  80) {iyr=iyr+2000;}               //*** y2k
+      else if(iyr <= 99) {iyr=iyr+1900;}               //*** fail 2080
+
+      subField = myString.substring( 5,  8);
+      imo      = Integer.parseInt(subField.trim());
+      subField = myString.substring( 8, 11);
+      idy      = Integer.parseInt(subField.trim());
+      subField = myString.substring(11, 14);
+      ihr      = Integer.parseInt(subField.trim());
+      subField = myString.substring(14, 17);
+      imn      = Integer.parseInt(subField.trim());
+      subField = myString.substring(17, 22);
+      sec      = Double.valueOf(subField.trim()).doubleValue();
+
+//*** if first epoch, check to establish time offset
+
+      if(myid <= 1){
+         if(tStuf.getMjd0() <= -1){
+            System.err.println("Time was set in nav file -- check obs file");
+            tStuf.setjd0(iyr, imo, idy);
+         }
+      }
+
+      jts = tStuf.civjts(iyr,imo,idy,ihr,imn,sec);   //*** also used for index
+      t0c = tStuf.jtssow(jts);
+
+      subField = myString.substring(22, 41).replace('D','e');
+      af0      = Double.valueOf(subField.trim()).doubleValue();
+      subField = myString.substring(41, 60).replace('D','e');
+      af1      = Double.valueOf(subField.trim()).doubleValue();
+      subField = myString.substring(60, 79).replace('D','e');
+      af2      = Double.valueOf(subField.trim()).doubleValue();
+   }
+
+   public void put1BC(String myString) {
+
+//*** load record (BC Orbit 1)
+
+      String subField;
+
+      subField = myString.substring( 3, 22).replace('D','e');
+      iode     = Double.valueOf(subField.trim()).doubleValue();
+
+      subField = myString.substring(22, 41).replace('D','e');
+      crs      = Double.valueOf(subField.trim()).doubleValue();
+
+      subField = myString.substring(41, 60).replace('D','e');
+      deln     = Double.valueOf(subField.trim()).doubleValue();
+
+      subField = myString.substring(60, 79).replace('D','e');
+      em0      = Double.valueOf(subField.trim()).doubleValue();
+   }
+
+   public void put2BC(String myString) {
+
+//*** load record (BC Orbit 2)
+
+      String subField;
+
+      subField = myString.substring( 3, 22).replace('D','e');
+      cuc      = Double.valueOf(subField.trim()).doubleValue();
+
+      subField = myString.substring(22, 41).replace('D','e');
+      e        = Double.valueOf(subField.trim()).doubleValue();
+
+      subField = myString.substring(41, 60).replace('D','e');
+      cus      = Double.valueOf(subField.trim()).doubleValue();
+
+      subField = myString.substring(60, 79).replace('D','e');
+      sqrta    = Double.valueOf(subField.trim()).doubleValue();
+   }
+
+   public void put3BC(String myString) {
+
+//*** load record (BC Orbit 3)
+
+      String subField;
+
+      subField = myString.substring( 3, 22).replace('D','e');
+      t0e      = Double.valueOf(subField.trim()).doubleValue();
+
+      subField = myString.substring(22, 41).replace('D','e');
+      cic      = Double.valueOf(subField.trim()).doubleValue();
+
+      subField = myString.substring(41, 60).replace('D','e');
+      omg0     = Double.valueOf(subField.trim()).doubleValue();
+
+      subField = myString.substring(60, 79).replace('D','e');
+      cis      = Double.valueOf(subField.trim()).doubleValue();
+   }
+
+   public void put4BC(String myString) {
+
+//*** load record (BC Orbit 4)
+
+      String subField;
+
+      subField = myString.substring( 3, 22).replace('D','e');
+      eye0     = Double.valueOf(subField.trim()).doubleValue();
+
+      subField = myString.substring(22, 41).replace('D','e');
+      crc      = Double.valueOf(subField.trim()).doubleValue();
+
+      subField = myString.substring(41, 60).replace('D','e');
+      w        = Double.valueOf(subField.trim()).doubleValue();
+
+      subField = myString.substring(60, 79).replace('D','e');
+      omgdot   = Double.valueOf(subField.trim()).doubleValue();
+   }
+
+   public void put5BC(String myString) {
+
+//*** load record (BC Orbit 5)
+
+      String subField;
+
+      subField = myString.substring( 3, 22).replace('D','e');
+      eyedot   = Double.valueOf(subField.trim()).doubleValue();
+
+      subField = myString.substring(22, 41).replace('D','e');
+      l2cd     = Double.valueOf(subField.trim()).doubleValue();
+
+      subField = myString.substring(41, 60).replace('D','e');
+      wkno     = Double.valueOf(subField.trim()).doubleValue();
+
+      subField = myString.substring(60, 79).replace('D','e');
+      l2pd    = Double.valueOf(subField.trim()).doubleValue();
+   }
+
+   public void put6BC(String myString) {
+
+//*** load record (BC Orbit 6)
+
+      String subField;
+
+      subField = myString.substring( 3, 22).replace('D','e');
+//*** troublesome field in gait nav file
+   try {
+      svac     = Double.valueOf(subField.trim()).doubleValue();
+   } 
+   catch (NumberFormatException e) {
+//****System.err.println("Reset acc. for " + subField.trim());
+      svac = 384.0;
+   }
+
+      subField = myString.substring(22, 41).replace('D','e');
+      svhl     = Double.valueOf(subField.trim()).doubleValue();
+
+      subField = myString.substring(41, 60).replace('D','e');
+      tgd      = Double.valueOf(subField.trim()).doubleValue();
+
+      subField = myString.substring(60, 79).replace('D','e');
+      iodc     = Double.valueOf(subField.trim()).doubleValue();
+   }
+
+   public void put7BC(String myString) {
+
+//*** load record (BC Orbit 7)
+
+      String subField;
+
+      subField = myString.substring( 3, 22).replace('D','e');
+      tot      = Double.valueOf(subField.trim()).doubleValue();
+   }
+
+//*****
+//***** compute methods
+//*****
+
+   public PosT bcxyzt (double tsv, Modes myModes) {
+      
+//*** compute pos of broadcast orbit (BC) for a single time
+
+//*** sense of the corrector (with relativity) is:   t=tsv-dt-dtr
+//*** BC is in GPS system time (use clock corr, time in sec.of.week)
+
+      double dt, dtr, bcclok;
+
+//*** correct satellite time
+
+      dt     = bcclok1(tsv);                       //*** icd-200 20.3.3.3.3.1
+      dtr    = bcclok2(tsv,dt);
+      bcclok = dt+dtr;
+
+//*** icd-200 20.3.3.3.3.2  (not dual freq)
+//*** old version below
+//*** if( (!myModes.isdFreq()) && (!myModes.isbIon())) bcclok = bcclok - tgd;
+
+//*** 2006july28 notes
+//*** DOD does NOT apply sat P1P2 DCB correction (Tgd) to broadcast clocks
+//*** IGS does NOT apply sat P1P2 DCB corrections to their clocks "by agreed convention"
+//*** thus, sat P1P2 DCB must be applied to DoD/IGS clocks if single freq. 
+//*** this is same convention as icd-200 20.3.3.3.3.2
+//*** this has NOTHING to do with use of any kind of an ionosphere model
+//*** its purpose is undoing the disseminated clock biases by means of
+//***    uncorrected (by DCB's) pseudorange ionosphere estimates
+
+      if( (!myModes.isdFreq()) ) bcclok = bcclok - tgd;
+
+//*** compute broadcast position at corrected time
+
+      return bcxyz(tsv-bcclok, bcclok, dtr);
+   }
+
+   public double bcclok1 (double t) {
+      
+//*** compute satellite clock correction (non-relativity term)
+//*** sense of the corrector is:   t=tsv-dt
+
+      double        dt;
+
+      if( (t-t0c) > 302400.0 ) t=t-604800.0;        //*** handle week rollover
+      if( (t-t0c) <-302400.0 ) t=t+604800.0;        //*** valid icd200
+
+      dt=af0+af1*(t-t0c)+af2*(t-t0c)*(t-t0c);       //*** valid icd200
+      return dt;
+   }
+
+   public double bcclok2 (double t, double dt) {
+      
+//*** compute satellite clock correction (relativity term)
+//*** sense of the corrector is:   t=tsv-dt-dtr
+
+      double dtr;       //*** relativity term
+      double ek;
+
+      if( (t-t0c) > 302400.0 ) t=t-604800.0;        //*** handle week rollover
+      if( (t-t0c) <-302400.0 ) t=t+604800.0;        //*** valid icd200
+      
+//*** relativity term
+
+      ek=eccano(t-dt);
+      dtr=bigf*e*sqrta*Math.sin(ek);           //*** valid icd200
+      return dtr;
+   }
+
+   public PosT bcxyz(double t, double bcclok, double dtr) {
+
+//*** compute ECBF XYZ at time t from broadcast elements
+//***               units: seconds, meters, radians
+//*** note: t corrected for SV clock error, also passed in bcclok
+//*** note: also passing relativitistic correction
+
+      double a,en0,tk,en,emk,ek,sinek,cosek,f,u,cu2,su2,duk,drk,dik;
+      double uk,rk,eyek,ceyek,xpk,ypk,omgk,comgk,somgk,xk,yk,zk;
+
+      if( (t-t0e) > 302400.0 ) t=t-604800.0;            //*** handle week rollover
+      if( (t-t0e) <-302400.0 ) t=t+604800.0;            //*** valid icd200
+
+//*** mean motion
+
+      a   = sqrta*sqrta;
+      en0 = Math.sqrt(gm/(a*a*a));
+
+//*** time since orbit reference epoch
+
+      tk = t-t0e;
+
+//*** corrected mean motion
+
+      en = en0+deln;
+
+//*** mean anomaly, M
+
+      emk = em0+en*tk;
+
+//*** solve kepler's equation for eccentric anomaly, E
+
+      ek    = kepEQ(emk);
+      sinek = Math.sin(ek);
+      cosek = Math.cos(ek);
+
+//*** true anomaly, f
+
+      f = Math.atan2( Math.sqrt(1.0-e*e)*sinek, cosek-e);
+
+//*** argument of latitude, u
+
+      u   = f+w;
+      cu2 = Math.cos(u+u);
+      su2 = Math.sin(u+u);
+
+//*** corrections to the arg. of lat., radius, and inclination
+
+      duk = cuc*cu2+cus*su2;
+      drk = crc*cu2+crs*su2;
+      dik = cic*cu2+cis*su2;
+
+//*** correct the arg. of lat., radius, and inclination
+
+      uk    = u               + duk;
+      rk    = a*(1.0-e*cosek) + drk;
+      eyek  = eye0+eyedot*tk  + dik;
+      ceyek = Math.cos(eyek);
+
+//*** position in the orbital plane
+
+      xpk = rk*Math.cos(uk);
+      ypk = rk*Math.sin(uk);
+
+//*** correct the longitude of the ascending node
+
+      omgk  = omg0+(omgdot-we)*tk-we*t0e;
+      comgk = Math.cos(omgk);
+      somgk = Math.sin(omgk);
+
+//*** compute ecbf coordinates
+
+      xk = xpk*comgk-ypk*somgk*ceyek;
+      yk = xpk*somgk+ypk*comgk*ceyek;
+      zk =           ypk      *Math.sin(eyek);
+
+      return new PosT(xk, yk, zk, bcclok, dtr);
+   }
+
+   public double eccano(double t) {
+
+//*** compute eccentric anomaly at time T from broadcast elements
+
+      double a,en0,tk,en,emk;
+
+      if( (t-t0e) >  302400.0 ) t=t-604800.0;      //*** handle week rollover
+      if( (t-t0e) < -302400.0 ) t=t+604800.0;
+
+      a=sqrta*sqrta;               //*** semimajor axis
+      en0=Math.sqrt(gm/(a*a*a));   //*** mean motion
+      tk=t-t0e;                    //*** time since orbit reference epoch
+      en=en0+deln;                 //*** corrected mean motion
+      emk=em0+en*tk;               //*** mean anomaly, M
+      return kepEQ(emk);           //*** solve kepler's eq for ecc anomaly, E
+   }
+
+   public double kepEQ(double em) {
+      
+//*** solve for eccentric anomaly given mean anomaly and orbital eccentricity
+//*** use simple fixed point iteration of kepler's equation
+
+      double ecca, ecca0;           //*** iterates of eccentric anomaly
+      
+//*** initialize eccentric anomaly
+
+      ecca=em+e*Math.sin(em);
+      
+//*** exit only on convergence
+
+      do {
+         ecca0=ecca;
+         ecca=em+e*Math.sin(ecca0);
+      }  while (Math.abs( (ecca-ecca0)/ecca ) > 1.e-14);
+      return ecca;
+   }
+
+   public void BCinit() {
+
+//*** initialize to test values
+
+      t0c   =  3.10400000000000e+03;
+      af2   =  0.00000000000000e+00;
+      af1   =  2.04636307898909e-12;
+      af0   =  4.73577529191971e-07;
+
+      crs   = -1.74687500000000e+01;
+      deln  =  4.57340478638085e-09;
+      em0   =  1.63307323511810e+00;
+
+      cuc   = -9.68575477600099e-07;
+      e     =  4.74695244338363e-03;
+      cus   =  2.30222940444947e-06;
+      sqrta =  5.15357911109924e+03;
+
+      t0e   =  3.10400000000000e+03;
+      cic   =  7.26431608200074e-08;
+      omg0  =  1.12194333211744e+00;
+      cis   = -4.28408384323121e-08;
+
+      eye0  =  9.59844678252147e-01;
+      crc   =  3.32750000000000e+02;
+      w     =  1.44611981813501e+00;
+      omgdot= -8.27498754358907e-09;
+
+      eyedot= -7.96461747257267e-11;
+
+      return;
+   }
+
+//*** expected test results:
+
+//***  myBC.BCinit();
+//***  myPos = myBC.bcxyzt( 3104.0);
+//***  System.out.println(myPos.toString4());
+//***  myPos = myBC.bcxyzt( 3204.0);
+//***  System.out.println(myPos.toString4());
+//***  myPos = myBC.bcxyzt( 4104.0);
+//***  System.out.println(myPos.toString4());
+//***  myPos = myBC.bcxyzt(13104.0);
+//***  System.out.println(myPos.toString4());
+
+//***  x=-17212647.7969  y=-20205593.2676  z=  1151304.1641
+//***  x=-17199667.6706  y=-20234605.2305  z=   834485.2910
+//***  x=-16972873.7180  y=-20363862.4894  z= -2016782.8591
+//***  x= -2061865.9599  y=-15633481.5430  z=-21527450.2128
+
+}//***endclass BCstuf
+//****************************************************************************
+class SP3set {
+
+//*** collection of precise orbits object
+
+   private static final int    MXPRN = 32;         //*** 38 are possible
+   private static final int    MXTRW = 3*4*24+1;   //*** time rows (3 days)
+   private static final double TINY  = 1.0e-2;     //*** tiny number
+   private static final double EPS   = 1.0e-13;    //*** very tiny number
+   private static final double BADT  = 0.999999;   //*** bad time flag
+
+   private Gtime  tStuf;                   //*** time object for SP3Set
+   private int    nsat=0;                  //*** sats in input file
+   private int    nep=0;                   //*** number of time epochs
+
+   private double tstr = 0;                //*** time of 1 st epoch
+   private double tstp = 0;                //*** time of last epoch
+   private double dlt  = 0;                //*** epoch interval
+   private int    imx  = 0;                //*** max index into arrays
+   private double t0mx = 0.0;              //*** time for max index
+
+   private double c[]     = new double [9+1];              //*** interp coeff.
+   private double xs [][] = new double [MXTRW+1][MXPRN+1]; //*** fortran style
+   private double ys [][] = new double [MXTRW+1][MXPRN+1]; 
+   private double zs [][] = new double [MXTRW+1][MXPRN+1]; 
+   private double ts [][] = new double [MXTRW+1][MXPRN+1];
+
+   private int    ierr;                    //*** error code
+   private double xSP3;                    //*** x of sat
+   private double ySP3;                    //*** y of sat
+   private double zSP3;                    //*** d of sat
+   private double tSP3;                    //*** dt of sat
+
+//***
+//*** compute methods
+//***
+
+   public boolean oterp(int iprn, double tsec){
+
+//*** interpolate sp3 orbit
+//*** iprn is prn identifier for a satellite
+//*** input time, tsec, is gps seconds from ref. epoch  (see Gtime)
+
+      int    i,intt,ioff;
+      double r,t,t0,tint, powr, dt, fac;
+
+//*** satellite prn number not loaded from the sp3 file (1st epoch 0 check)
+
+      r=xs[1][iprn]*xs[1][iprn]+ys[1][iprn]*ys[1][iprn]+zs[1][iprn]*zs[1][iprn];
+      if(r <= TINY){
+         ierr=1;
+         return false;
+      }
+
+//*** prevent extrapolation on either end
+
+      if(tsec < tstr || tsec > tstp){
+         ierr=2;
+         return false;
+      }
+
+//*** routine for finding index into table
+//*** produces normalized time [0,1,...,8] --> should be 3.5 < tnorm < 4.5
+
+      i  = ((int)Math.round((tsec-tstr)/dlt)+1)-4;
+      t0 = (i-1)*dlt+tstr;
+
+//*** boundary conditions
+
+      if(i < 1){
+         i  = 1;
+         t0 = tstr;
+      }else if(i > imx){
+         i  = imx;
+         t0 = t0mx;
+      }
+      t = (tsec-t0)/dlt;
+      ioff = i-1;
+
+//*** 9-th order interpolator             -- equally-spaced points
+//*** time normalized 0,1,...,8           -- should be 3.5 < t < 4.5
+//*** ioff is offset into array xs[][]
+
+//*** use stored values if t is exact integer time (avoid division by 0)
+
+      intt = (int)Math.round(t);
+      tint = (double)intt;
+      if(Math.abs(t-tint) <= EPS) {
+         if(intt >= 0 && intt <= 8) {
+            xSP3 = xs[intt+1+ioff][iprn];
+            ySP3 = ys[intt+1+ioff][iprn];
+            zSP3 = zs[intt+1+ioff][iprn];
+            tSP3 = ts[intt+1+ioff][iprn];
+            if(tSP3 >= BADT){
+               ierr=3;
+               return false;
+            }
+         }else{
+            System.err.println("index error inside oterp()");
+            System.exit(1);
+         }
+
+//*** normal interpolation
+//*** coefficents, c(), initialized in constructor--see Ben Remondi diss.
+
+      }else{
+         powr =1.0;
+         xSP3 =0.0;
+         ySP3 =0.0;
+         zSP3 =0.0;
+         tSP3 =0.0;
+         for(int j=1; j<=9; j++){
+           dt   = t - (double)(j-1);
+           powr = dt*powr;
+           fac  = 1.0/(c[j]*dt);
+           xSP3 = xSP3 + xs[j+ioff][iprn]*fac;
+           ySP3 = ySP3 + ys[j+ioff][iprn]*fac;
+           zSP3 = zSP3 + zs[j+ioff][iprn]*fac;
+           tSP3 = tSP3 + ts[j+ioff][iprn]*fac;
+            if(ts[j+ioff][iprn] >= BADT){
+               ierr=3;
+               return false;
+            }
+         }
+         xSP3 = xSP3*powr;
+         ySP3 = ySP3*powr;
+         zSP3 = zSP3*powr;
+         tSP3 = tSP3*powr;
+      }
+      ierr=0;
+      return true;
+   }
+
+//***
+//*** constructor
+//***
+
+   public SP3set(BufferedReader in, Gtime tStufx) {
+      tStuf = tStufx;
+      nsat=doSP3Header(in);                              //*** header
+      if(nsat > MXPRN){
+         System.err.println("Fatal-- nsats=" + nsat);
+         System.exit(1);
+      }
+      for(int i=0; i<=MXTRW; i++){                       //*** zero everything
+         for(int j=0; j<=nsat; j++){
+            xs[i][j] = 0.0; 
+            ys[i][j] = 0.0; 
+            zs[i][j] = 0.0; 
+            ts[i][j] = 0.0; 
+         }
+      }
+      doSP3Data(in);
+
+//*** finish setting up some index/bookkeeping info
+
+      if(Math.abs( ((tstp-tstr)/(nep-1)) - dlt) > TINY){
+         System.err.println("delta t mismatch =" + dlt);
+         System.exit(1);
+      }
+      imx=nep-9+1;
+      t0mx=(imx-1)*dlt+tstr;
+
+//*** interpolation coefficients and parameters
+
+      c[1] = 40320.0;
+      c[2] = -5040.0;
+      c[3] =  1440.0;
+      c[4] =  -720.0;
+      c[5] =   576.0;
+      c[6] =  -720.0;
+      c[7] =  1440.0;
+      c[8] = -5040.0;
+      c[9] = 40320.0;
+   }
+
+//***
+//*** load methods only accessed thru constructor
+//***
+
+   private void doSP3Data(BufferedReader in){
+
+//*** loop over SP3 file data
+
+      String myString;
+      String subField;
+      int    iprn;
+      double x,y,z,t;
+
+      try {
+         while( (myString=in.readLine()) != null ){
+
+//*** header
+
+            subField=myString.substring(0,3);
+            if(subField.equals("EOF")) {
+               break;
+            }else{
+               nep=nep+1;
+               if(nep > MXTRW){
+                  System.err.println("Fatal-- # epoch exeeded=" + nep);
+                  System.exit(1);
+               }
+               tstp = eparse(myString);       //*** last epoch (keep updating)
+               if(nep == 1)  tstr = tstp;     //*** first epoch
+            }
+
+//*** sats                                         *** (P records only)
+//***   convert to meters and seconds
+
+            for(int i=1; i<=nsat; i++){
+               if( (myString=in.readLine()) != null ){
+                  subField=myString.substring(0,1);
+                  if(!subField.equals("P")) {
+                     System.err.println("Fatal-- missed P rec.");
+                     System.exit(1);
+                  }
+
+//*** patch to allow both sp3 and sp3c formats
+//*** note: does NOT check for mixed-GNSS types (assumes pure GPS-only)
+
+                  subField = myString.substring( 2,4);
+//*************** subField = myString.substring( 1,4);
+                  iprn     = Integer.parseInt(subField.trim());
+
+                  subField = myString.substring( 4,18);
+                  x        = Double.valueOf(subField.trim()).doubleValue();
+                  xs[nep][iprn] = x*1000.0;
+
+                  subField = myString.substring(18,32);
+                  y        = Double.valueOf(subField.trim()).doubleValue();
+                  ys[nep][iprn] = y*1000.0;
+
+                  subField = myString.substring(32,46);
+                  z        = Double.valueOf(subField.trim()).doubleValue();
+                  zs[nep][iprn] = z*1000.0;
+
+                  subField = myString.substring(46,60);
+                  t        = Double.valueOf(subField.trim()).doubleValue();
+                  ts[nep][iprn] = t/1.0e6;
+
+               }else{
+                  System.err.println("Fatal SP3 read\n");
+                  in  = null;
+                  System.exit(1);
+               }
+            }
+         }//*** endwhile
+      }//*** endtry
+      catch (IOException e) {
+         System.err.println("Error in SP3 r/w\n" + e.toString());
+         System.exit(1);
+      }
+   }
+
+   private double eparse(String myStr){
+
+//*** parse the epoch record in an SP3 format
+
+      int    iyr, imo, idy, ihr, imn;
+      double sec;
+      String subField;
+
+      subField=myStr.substring(0,1);
+      if(!subField.equals("*")) {
+         System.err.println("Fatal-- missed epoch rec.");
+         System.exit(1);
+      }
+
+      subField = myStr.substring( 3, 7);
+      iyr       = Integer.parseInt(subField.trim());
+
+      subField = myStr.substring( 7,10);
+      imo       = Integer.parseInt(subField.trim());
+
+      subField = myStr.substring(10,13);
+      idy       = Integer.parseInt(subField.trim());
+
+      subField = myStr.substring(13,16);
+      ihr       = Integer.parseInt(subField.trim());
+
+      subField = myStr.substring(16,19);
+      imn       = Integer.parseInt(subField.trim());
+
+      subField = myStr.substring(19,myStr.length());
+      sec       = Double.valueOf(subField.trim()).doubleValue();
+
+      return tStuf.civjts(iyr, imo, idy, ihr, imn, sec);
+   }
+
+   private int doSP3Header(BufferedReader in){
+
+//*** loop over SP3 file header
+
+      String myString;
+      String subField;
+      int    icount;
+      int    nsat=0;
+
+//*** loop until header end detected
+
+      icount=0;
+      try {
+         if( (myString=in.readLine()) != null ){icount=icount+1;}
+
+         if( (myString=in.readLine()) != null ){
+            icount=icount+1;
+            subField = myString.substring(23,38);
+            dlt      = Double.parseDouble(subField.trim());
+         }
+
+         if( (myString=in.readLine()) != null ){
+            icount=icount+1;
+            subField = myString.substring(2,6);
+            nsat     = Integer.parseInt(subField.trim());
+         }
+
+         while( (myString=in.readLine()) != null ){
+            icount=icount+1;
+            if(icount >= 22) break;
+         }
+      } 
+      catch (IOException e) {
+         System.err.println("Error in copy\n" + e.toString());
+         System.exit(1);
+      }
+      return nsat;
+   }
+
+//***
+//*** view methods
+//***
+
+   public int    gSP3err() {return ierr;}
+   public double gSP3x()   {return xSP3;}
+   public double gSP3y()   {return ySP3;}
+   public double gSP3z()   {return zSP3;}
+   public double gSP3t()   {return tSP3;}
+
+}//***endclass SP3set
+//****************************************************************************
+class Met {
+
+//*** met object for gps
+//*** substitute Pos and Rpos objects
+
+   private static final double RAD   = 180.0/Math.PI;      //*** radians to deg
+   private static final double MDJ2000=51544.0;         //*** MJD of 1-jan-2000
+
+   private double temp;        //*** temperature in Celsius
+   private double pres;        //*** pressure in mbar
+   private double rh;          //*** relative humidity 0 to 1 (not percent)
+   private double dryzen;      //*** dry atmosphere zenith path delay [m]
+   private double wetzen;      //*** wet zenith delay [m]
+
+//*** set functions
+
+   public void putTemp(double tempin)   {temp  =tempin;}
+   public void putPres(double presin)   {pres  =presin;}
+   public void putRH(  double rhin)     {rh    =rhin;}
+   public void putDryz(double dryzenin) {dryzen=dryzenin;}
+   public void putWetz(double wetzenin) {wetzen=wetzenin;}
+
+//*** view functions
+
+   public double getTemp() {return temp;}
+   public double getPres() {return pres;}
+   public double getRH()   {return rh;}
+   public double getDryz() {return dryzen;}
+   public double getWetz() {return wetzen;}
+
+//*** compute functions
+
+   public double tropdelay(double glat, double oht, double v, 
+                           double tsec, Gtime mytime) {
+
+//*** compute tropo delay in meters
+//*** latitude and vert angle input in radians
+//*** ortho height in meters
+
+//*** seasonal model for temp, pres, and r.h.
+
+      if( (glat < -1.571) || (glat > 1.571) ) {
+         System.err.println("lat error in tropdelay()");
+         System.exit(1);
+      }
+      if( (oht  < -150.0) || (oht  > 5000.0)) {
+         System.err.println("oht error in tropdelay()");
+         System.exit(1);
+      }
+      if( (v    <   -0.1) || (v    > 1.571) ) {
+         System.err.println("v-ang error in tropdelay()");
+         System.exit(1);
+      }
+
+      met_seas(oht, glat, tsec, mytime);    //*** seasonal model (herring)
+
+//*** given temp, pres, and r.h. --> get tdelay in meters
+
+      if( (temp < -50.0) || (temp > 50.0) ) {
+         System.err.println("temp error in tropdelay()");
+         System.exit(1);
+      }
+      if( (pres < 500.0) || (pres > 1100.0)) {
+         System.err.println("pres="+pres);
+         System.err.println("pres error in tropdelay()");
+         System.exit(1);
+      }
+      if( (rh   <   0.0) || (rh   >   1.0) ) {
+         System.err.println("rh error in tropdelay()");
+         System.exit(1);
+      }
+
+      return tropo(glat, oht, v);
+   }
+
+   public void met_seas(double oht, double glat, double tsec, Gtime mytime){
+
+//*** seasonal model (T. Herring, MIT)
+//*** Name changed, call modified, adapted for use by Page4, J. Ray (95.07.25)
+
+//*** oht    height of site (meters) above geoid
+//*** glat   latitude of site (radians)
+//*** t      time (jts-- jul. time, sec) (converted thru Gtime object)
+
+      double hgt,epoch,dt1,tempk;
+
+      hgt = oht/1000.0;                       //*** convert input height to km
+
+      mytime.jtsciv(tsec);
+      mytime.civmjd();
+      epoch = (mytime.getMjd()-MDJ2000) + mytime.getFmjd();
+
+//*** estimate temperature -- get seasonal argument
+
+      dt1  = (epoch/365.25)*2.0*Math.PI;
+      temp = (-20.5 + 48.4*Math.cos(glat)  - 3.1*hgt) +
+             (-14.3 +  3.3*hgt) *Math.sin(glat)*Math.cos(dt1)  +
+             ( -4.7 +  1.1*hgt) *Math.sin(glat)*Math.sin(dt1);
+
+//*** compute the pressure based on standard lapse rate 
+
+      tempk = temp + 273.15;                           //*** convert to Kelvin
+      pres  = 1013.25 * Math.pow((tempk/(tempk + 6.5*hgt)), 5.26);
+ 
+//*** relative humidity (plain default value)
+
+      rh = 0.5;
+   }
+
+   public double tropo(double glat, double oht, double v){
+
+//*** compute troposphere delay (saastamoinen with herring mapping)
+
+//*** v      -- vertical angle (radians)
+//*** gla    -- geodetic latitude (radians)
+//*** oht    -- orthometric height of rcvr. (meters)
+
+      double hs,sine,cgla,ts10;
+      double ah,bh,ch,mh,aw,bw,cw,mw;
+
+//*** zenith delay section
+
+      saast(glat,oht);              //*** saastamoinen
+
+//*** mapping function section
+//*** herring: 1992, refraction of transatmospheric signals in geodesy
+//*** note: mapping fcns derived: lat 27N-65N, and ht. 0-1.6 km
+
+      hs   = oht/1000.0;       //*** hs -- orthometric ht of rcvr.(kilometers)
+      sine = Math.sin(v);
+      cgla = Math.cos(glat);
+      ts10 = temp-10.0;        //*** offset to surface temperature (Celsius)
+
+//*** hydrostatic mapping fcn  (herring eq. 8)  (RMS ~ 3-10 mm)
+
+      ah = (1.2330 + 0.0139*cgla - 0.0209*hs + 0.00215*ts10)*1.e-3;
+      bh = (3.1612 - 0.1600*cgla - 0.0331*hs + 0.00206*ts10)*1.e-3;
+      ch = (71.244 - 4.2930*cgla - 0.1490*hs - 0.00210*ts10)*1.e-3;
+
+      mh = ( 1.0+ah/( 1.0+bh/( 1.0+ch)))/
+           (sine+ah/(sine+bh/(sine+ch)));
+
+//*** wet mapping fcn  (herring eq. 9)
+
+      aw = (0.583 - 0.011*cgla - 0.052*hs + 0.0014*ts10)*1.e-3;
+      bw = (1.402 - 0.102*cgla - 0.101*hs + 0.0020*ts10)*1.e-3;
+      cw = (45.85 - 1.910*cgla - 1.290*hs + 0.0150*ts10)*1.e-3;
+
+      mw = (1.0+aw/( 1.0+bw/( 1.0+cw)))/
+          (sine+aw/(sine+bw/(sine+cw)));
+
+//*** total atmospheric delay  (herring eq 3)
+
+      return dryzen*mh + wetzen*mw;
+   }
+
+   public void saast(double gla, double oht){
+
+//*** compute wet and dry zenith delay using the saastamoinen formula
+
+//************************************************************************
+//* input
+//* gla   site latitude       [radians]
+//* oht   orthometric height  [m]
+//* bp    barometric pressure [millibars]
+//* tc    temperature         [centigrade]
+//* rh    relative humidity   [0.0 --> 1.0]
+//*
+//* output
+//* dryzen  dry atmosphere zenith path delay [m]
+//* wetzen  wet zenith delay [m]
+//*
+//*  87-02-15, written by:   j. l. davis
+//*  91-01-09, mss, standard header.  remove vlbi specific code
+//*  96-04-11, dgm, combined wet and dry, and deleted derivative stuff
+//*  00-05-24, dgm, java conversion
+//************************************************************************
+
+      double fgrav, tk, pp;
+
+//*** saastamoinen's function for gravity
+
+      fgrav = 1.0 - 0.00266*Math.cos(2.0*gla) - 0.00028e-3*oht;
+
+//*** water vapor partial pressure in mbars   (proportional to rh)
+
+      tk = temp + 273.15;
+      pp = rh*6.11 * Math.pow((tk/273.15), -5.3) * Math.exp(25.2*temp/tk);
+
+//*** zenith delays
+
+      wetzen = 0.0022768*(1255.0/tk+0.05)*pp/fgrav;
+      dryzen = 0.0022768*                 pres/fgrav;
+   }
+
+   public double adalap(double z, double p0){
+
+//*** compute pressure vs. temperature
+//*** ICAN atmosphere, (eq.176) Handbook of Met. (Berry, Bollay, Beers)
+//***               (pg. 374)   (1945, McGraw Hill)
+
+//*** z in meters
+//*** p,p0 in millibars
+
+      double p;
+
+      p0=1013.2;                          //***debug -- check this (overwrite?)
+      p=p0*Math.pow((1.0-0.0065*z/288.0), 5.2568);
+
+      return p;
+   }
+}//***endclass Met
+//****************************************************************************
+class PosD {
+
+//*** receiver position object + dop's
+//*** debug -- have this inherit from Pos
+
+   private static final double A=6378137.0;              //*** grs-80 ellipsoid
+   private static final double E2=0.006694380022903416;  //*** (geod.hand.1992)
+   private static final double AE2=A*E2;                 //*** (66(2), pg. 191)
+
+//*** position
+
+   private double x;
+   private double y;
+   private double z;  
+   private double pdop;
+   private double hdop;
+   private double vdop;
+
+   private double gla;         //*** radians
+   private double glo;         //*** radians  (pos east)
+   private double eht;         //*** meters
+
+//*** methods (default constructor)
+
+   public PosD (double    xin, double    yin,    double zin, 
+                double pdopin, double hdopin, double vdopin){
+      x    = xin;
+      y    = yin;
+      z    = zin;
+      pdop = pdopin;
+      hdop = hdopin;
+      vdop = vdopin;
+
+      gla=0.0;       //*** set to null  (see xyzgeo())
+      glo=0.0;
+      eht=0.0;
+   }
+
+   public double getxPosD()    {return x;}
+   public double getyPosD()    {return y;}
+   public double getzPosD()    {return z;}
+   public double getpdopPosD() {return pdop;}
+   public double gethdopPosD() {return hdop;}
+   public double getvdopPosD() {return vdop;}
+   public double getGlaGPD()   {return gla;}
+   public double getGloGPD()   {return glo;}
+   public double getEhtGPD()   {return eht;}
+
+   public void putxPosD    (double inx)    {   x  = inx;}
+   public void putyPosD    (double iny)    {   y  = iny;}
+   public void putzPosD    (double inz)    {   z  = inz;}
+   public void putpdopPosD (double inpdop) {pdop  = inpdop;}
+   public void puthdopPosD (double inhdop) {hdop  = inhdop;}
+   public void putvdopPosD (double invdop) {vdop  = invdop;}
+
+   public String toString() {return "x="+   x+   "  y="+   y+   "  z="+   z+
+                               "  pdop="+pdop+"  hdop="+hdop+"  vdop="+vdop;}
+   public String toString4() {
+      DecimalFormat fDF = new DecimalFormat("0.0000");
+      DecimalFormat fD1 = new DecimalFormat("0.0");
+      return "x="+fDF.format(x)+"  y="+fDF.format(y)+
+           "  z="+fDF.format(z)+"  pdop="+ fD1.format(pdop)+
+           "  hdop="+ fD1.format(hdop)+"  vdop="+ fD1.format(vdop);
+   }
+
+//*** conversion methods
+
+   public void xyzgeoD() {
+ 
+//*** convert x,y,z into geodetic lat, lon, and ellip. ht
+//*** ref: eq a.4b, p. 132, appendix a, osu #370
+//*** ref: geom geod notes gs 658, rapp
+ 
+      final  double MAXINT=10,TOL=1.0e-14;
+      double p,tgla,tglax,sla,w,n;
+      int    icount=0;
+ 
+//*** compute initial estimate of reduced latitude  (eht=0)
+ 
+      p=Math.sqrt(x*x+y*y);
+      tgla=z/p/(1.0-E2);
+ 
+//*** iterate to convergence, or to max # iterations
+
+      while(icount < MAXINT){
+         tglax=tgla;
+         tgla=z/(p-(AE2/Math.sqrt(1.0+(1.0-E2)*tgla*tgla)));
+         icount=icount+1;
+
+         if(Math.abs(tgla-tglax) <= TOL){      //*** convergence test
+            gla=Math.atan(tgla);
+            sla=Math.sin(gla);
+            glo=Math.atan2(y,x);
+            w=Math.sqrt(1.0-E2*sla*sla);
+            n=A/w;
+            if(Math.abs(gla) < 0.7854){
+               eht=p/Math.cos(gla)-n;
+            }else{
+               eht=z/sla-n+E2*n;
+            }
+            return;
+         }
+      }//***endwhile
+ 
+//*** too many iterations -- probably too close to pole
+
+      System.err.println("Fail to converge in xyzgeoD()");
+      System.exit(1);
+   }
+}//***endclass PosD
+//****************************************************************************
+class PosT {
+
+//*** satellite position object + time correctors
+//*** debug -- have this inherit from Pos
+
+//*** position
+
+   private double x;
+   private double y;
+   private double z;  
+   private double dt;
+   private double dtr;         //*** relativistic correction
+
+//*** methods (default constructor)
+
+   public PosT (double xin, double yin, double zin, double dtin, double dtrin){
+      x  =xin;
+      y  =yin;
+      z  =zin;
+      dt =dtin;
+      dtr=dtrin;
+   }
+
+   public double getxPosT()  {return x;}
+   public double getyPosT()  {return y;}
+   public double getzPosT()  {return z;}
+   public double getdtPosT() {return dt;}
+   public double getdtrPosT(){return dtr;}
+
+   public void putxPosT  (double inx)  { x  = inx;}
+   public void putyPosT  (double iny)  { y  = iny;}
+   public void putzPosT  (double inz)  { z  = inz;}
+   public void putdtPosT (double indt) {dt  = indt;}
+   public void putdtrPosT(double indtr){dtr = indtr;}
+
+   public String toString() {return "x="+x+"  y="+y+"  z="+z+"  dt="+dt;}
+   public String toString4() {
+      DecimalFormat fDF = new DecimalFormat("0.0000");
+      return "x="+fDF.format(x)+"  y="+fDF.format(y)+
+           "  z="+fDF.format(z)+"  dt="+ dt;
+   }
+}//***endclass PosT
+//************************************************************************
+class Pos {
+
+//*** position object (3D)
+
+   private static final double A=6378137.0;              //*** grs-80 ellipsoid
+   private static final double E2=0.006694380022903416;  //*** (geod.hand.1992)
+   private static final double AE2=A*E2;                 //*** (66(2), pg. 191)
+
+//*** position
+
+   private double x;
+   private double y;
+   private double z;  
+
+   private double gla;         //*** radians
+   private double glo;         //*** radians  (pos east)
+   private double eht;         //*** meters
+
+//*** methods (default constructor)
+
+   public Pos (double xin, double yin, double zin){
+      x  =xin;
+      y  =yin;
+      z  =zin;
+      gla=0.0;       //*** set to null  (see xyzgeo())
+      glo=0.0;
+      eht=0.0;
+   }
+   public double getxPos()  {return x;}
+   public double getyPos()  {return y;}
+   public double getzPos()  {return z;}
+   public double getGlaGP()  {return gla;}
+   public double getGloGP()  {return glo;}
+   public double getEhtGP()  {return eht;}
+
+   public String toString() {return "x="+x+"  y="+y+"  z="+z;}
+   public String toString4() {
+      DecimalFormat fDF = new DecimalFormat("0.0000");
+      return "x="+fDF.format(x)+"  y="+fDF.format(y)+"  z="+fDF.format(z);
+   }
+
+//*** creation methods
+
+   public double[][] rotmat() {
+
+//*** build rotation matrix
+
+//*** fortran indexing
+
+      double a[][] = new double [3+1][4+1];
+
+      double sla,slo,cla,clo;
+
+      if(gla==0.0 && glo==0.0 && eht==0.0) this.xyzgeo();
+      sla=Math.sin(gla);
+      cla=Math.cos(gla);
+      slo=Math.sin(glo);
+      clo=Math.cos(glo);
+
+//*** geocentric to local horizon system  (c.f. Ben notes)
+
+//*** n = -sla*clo*px -sla*slo*py +cla*pz
+
+      a[1][1] =-sla*clo;
+      a[1][2] =-sla*slo;
+      a[1][3] = cla;
+      a[1][4] = 0.0;
+
+//*** e =     -slo*px +    clo*py
+
+      a[2][1] =-slo;
+      a[2][2] = clo;
+      a[2][3] = 0.0;
+      a[2][4] = 0.0;
+
+//*** u =  cla*clo*px +cla*slo*py +sla*pz
+
+      a[3][1] = cla*clo;
+      a[3][2] = cla*slo;
+      a[3][3] = sla;
+      a[3][4] = 0.0;
+
+      return a;
+   }
+
+//*** conversion methods
+
+   public void xyzgeo() {
+ 
+//*** convert x,y,z into geodetic lat, lon, and ellip. ht
+//*** ref: eq a.4b, p. 132, appendix a, osu #370
+//*** ref: geom geod notes gs 658, rapp
+ 
+      final  double MAXINT=10,TOL=1.0e-14;
+      double p,tgla,tglax,sla,w,n;
+      int    icount=0;
+ 
+//*** compute initial estimate of reduced latitude  (eht=0)
+ 
+      p=Math.sqrt(x*x+y*y);
+      tgla=z/p/(1.0-E2);
+ 
+//*** iterate to convergence, or to max # iterations
+
+      while(icount < MAXINT){
+         tglax=tgla;
+         tgla=z/(p-(AE2/Math.sqrt(1.0+(1.0-E2)*tgla*tgla)));
+         icount=icount+1;
+
+         if(Math.abs(tgla-tglax) <= TOL){      //*** convergence test
+            gla=Math.atan(tgla);
+            sla=Math.sin(gla);
+            glo=Math.atan2(y,x);
+            w=Math.sqrt(1.0-E2*sla*sla);
+            n=A/w;
+            if(Math.abs(gla) < 0.7854){
+               eht=p/Math.cos(gla)-n;
+            }else{
+               eht=z/sla-n+E2*n;
+            }
+            return;
+         }
+      }//***endwhile
+ 
+//*** too many iterations -- probably too close to pole
+
+      System.err.println("Fail to converge in xyzgeo()");
+      System.exit(1);
+   }
+}
+//************************************************************************
+class RVec {
+
+//*** range object
+
+//*** components
+
+   private double px;         //*** from rx to sv
+   private double py;
+   private double pz;
+
+   private double az;         //*** radians  (clockwise)
+   private double va;         //*** radians  (neg. below horizon)
+   private double rho;        //*** meters
+
+//*** methods (default constructor)
+
+   public RVec (double pxin, double pyin, double pzin){
+      px=pxin;
+      py=pyin;
+      pz=pzin;
+      rho=Math.sqrt(px*px+py*py+pz*pz);
+   }
+   public double getPxRV()  {return px;}
+   public double getPyRV()  {return py;}
+   public double getPzRV()  {return pz;}
+   public double getAzRV()  {return az;}
+   public double getVaRV()  {return va;}
+   public double getRhoRV() {return rho;}
+
+//*** conversion methods
+
+   public void xyzlhs(Pos rxPos) {
+
+//*** convert ecbf topocentric range vector to azimuth/elevation
+
+      double sla,slo,cla,clo,n,e,u;
+
+      sla=Math.sin(rxPos.getGlaGP());
+      cla=Math.cos(rxPos.getGlaGP());
+      slo=Math.sin(rxPos.getGloGP());
+      clo=Math.cos(rxPos.getGloGP());
+
+//*** topocentric to local horizon system  (c.f. Ben notes)
+
+      u =  cla*clo*px +cla*slo*py +sla*pz;
+      e =     -slo*px +    clo*py       ;
+      n = -sla*clo*px -sla*slo*py +cla*pz;
+
+      va =Math.asin(u/rho);
+      az =Math.atan2(e,n);
+   }
+}
+//************************************************************************
+class Gtime {
+
+//*** Time class -- Gtime
+
+      private static final int mjd6jan80 = 44244;  //*** mjd for begin GPS
+
+      private int    mjd0 = -1;                    //*** ref part for times
+
+      private int    iyrg,imog,idyg,ihrg,imng;
+      private double secg;
+      private int    mjdg;
+      private double fmjdg;
+
+//*** set functions
+
+   public void putCiv(int iyr, int imo, int idy, 
+                      int ihr, int imn, double sec){
+
+      if(iyr <= 1900 || iyr >= 2100){
+         System.err.println("Error--Gtime.putCiv()");
+         System.err.println("Error--iyr range error =" + iyr);
+         System.exit(1);
+      }
+
+      if(imo < 1 || imo > 12){
+         System.err.println("Error--Gtime.putCiv()");
+         System.err.println("Error--imo range error =" + imo);
+         System.exit(1);
+      }
+
+      if(idy < 1 || idy > 31){
+         System.err.println("Error--Gtime.putCiv()");
+         System.err.println("Error--idy range error =" + idy);
+         System.exit(1);
+      }
+
+      if(ihr < 0 || ihr > 23){
+         System.err.println("Error--Gtime.putCiv()");
+         System.err.println("Error--ihr range error =" + ihr);
+         System.exit(1);
+      }
+
+      if(imn < 0 || imn > 59){
+         System.err.println("Error--Gtime.putCiv()");
+         System.err.println("Error--imn range error =" + imn);
+         System.exit(1);
+      }
+
+      if(sec < 0 || sec >= 60.0){
+         System.err.println("Error--Gtime.putCiv()");
+         System.err.println("Error--sec range error =" + sec);
+         System.exit(1);
+      }
+
+      iyrg=iyr;
+      imog=imo;
+      idyg=idy;
+      ihrg=ihr;
+      imng=imn;
+      secg=sec;
+   }
+
+   public void putMjd(int mjd, double fmjd){
+      mjdg =mjd;
+      fmjdg=fmjd;
+   }
+
+   public void setjd0(int iyr, int imo, int idy){
+
+//*** set the integer part of a modified julian date as epoch, mjd0
+//*** the modified julian day is derived from civil time as in civmjd()
+//*** allows single number expression of time in seconds w.r.t. mjd0
+
+      int y,m,it1,it2,mjd;
+
+      if(iyr <= 1900 || iyr >= 2100){
+         System.err.println("Error--Gtime.setjd0()");
+         System.err.println("Error--iyr range error =" + iyr);
+         System.exit(1);
+      }
+
+      if(imo < 1 || imo > 12){
+         System.err.println("Error--Gtime.setjd0()");
+         System.err.println("Error--imo range error =" + imo);
+         System.exit(1);
+      }
+
+      if(idy < 1 || idy > 31){
+         System.err.println("Error--Gtime.setjd0()");
+         System.err.println("Error--idy range error =" + idy);
+         System.exit(1);
+      }
+
+      if(imo <= 2){
+        y = iyr-1;
+        m = imo+12;
+      }else{
+        y = iyr;
+        m = imo;
+      }
+
+      it1 = (int) (365.25*y);
+      it2 = (int) (30.6001*(m+1));
+      mjd = it1+it2+idy-679019;
+
+      mjd0=mjd;                      //*** set reference mjd for other methods
+   }
+
+//*** view functions
+
+   public int    getIyr()  {return iyrg;}
+   public int    getImo()  {return imog;}
+   public int    getIdy()  {return idyg;}
+   public int    getIhr()  {return ihrg;}
+   public int    getImn()  {return imng;}
+   public double getSec()  {return secg;}
+   public int    getMjd()  {return mjdg;}
+   public double getFmjd() {return fmjdg;}
+   public int    getMjd0() {return mjd0;}
+
+//*** conversion functions
+
+   public double civjts(int iyr, int imo, int idy, 
+                        int ihr, int imn, double sec){
+
+//*** convert civil date to time in seconds past mjd epoch, mjd0
+//*** requires initialization of mjd0 by setjd0()
+
+//*** only valid in range mar-1900 thru feb-2100     (leap year protocols)
+//*** ref: hofmann-wellenhof, 2nd ed., pg 34-35
+//*** adapted from civmjd()
+
+      int    y,m,it1,it2,mjd;
+      double tsec;
+
+      if(mjd0 <= -1){
+         System.err.println("Error--Gtime.civjts()");
+         System.err.println("Error--initialize by setjd0()!");
+         System.exit(1);
+      }
+
+      if(iyr <= 1900 || iyr >= 2100){
+         System.err.println("Error--Gtime.civjts()");
+         System.err.println("Error--iyr range error =" + iyr);
+         System.exit(1);
+      }
+
+      if(imo <= 2){
+        y = iyr-1;
+        m = imo+12;
+      }else{
+        y = iyr;
+        m = imo;
+      }
+
+      it1  = (int) (365.25*y);
+      it2  = (int) (30.6001*(m+1));
+      mjd  = it1+it2+idy-679019;
+      tsec = (mjd-mjd0)*86400.0+3600*ihr+60*imn+sec;
+
+      return tsec;
+   }
+
+   public void jtsciv(double tsec){
+
+//*** convert time in seconds past mjd0 epoch into civil date
+//*** requires initialization of mjd0 by setjd0()
+
+      if(mjd0 <= -1){
+         System.err.println("Error--Gtime.jtsciv()");
+         System.err.println("Error--initialize by setjd0()!");
+         System.exit(1);
+      }
+
+      mjdg  = (int) (mjd0+tsec/86400.0);
+      fmjdg = fmod(tsec,86400.0)/86400.0;    //*** preserves digits
+      this.mjdciv();
+   }
+
+   public void mjdciv(){
+
+//*** convert modified julian date to civil date
+
+//*** only valid in range mar-1900 thru feb-2100
+//*** ref: hofmann-wellenhof, 2nd ed., pg 34-35
+//*** operation confirmed for leap years (incl. year 2000)
+
+      double rjd,tmp;
+      int    ia,ib,ic,id,ie;
+
+      rjd = mjdg+fmjdg+2400000.5;             //*** since 4713 BC
+      ia  = (int)(rjd+0.5);
+      ib  = ia + 1537;
+      ic  = (int) ((ib-122.1)/365.25);
+      id  = (int) (365.25*ic);
+      ie  = (int) ((ib-id)/30.6001);
+
+      idyg = ib -id - ((int)(30.6001*ie)) + ((int)(fmod(rjd+0.5, 1.0)));
+      imog = ie - 1 - 12*((int)(ie/14));
+      iyrg = ic - 4715 - ((int)((7+imog)/10));
+
+      tmp  = fmjdg*24.0;
+      ihrg = (int) tmp;
+      tmp  = (tmp-ihrg)*60.0;
+      imng = (int) tmp;
+      secg = (tmp-imng)*60.0;
+   }
+
+   public void civmjd(){
+
+//*** convert civil date to modified julian date
+
+//*** only valid in range mar-1900 thru feb-2100      (leap year protocols)
+//*** ref: hofmann-wellenhof, 2nd ed., pg 34-35
+//*** operation confirmed against table 3.3 values on pg.34
+
+      int y,m,it1,it2;
+
+      if(imog <= 2){
+        y = iyrg-1;
+        m = imog+12;
+      }else{
+        y = iyrg;
+        m = imog;
+      }
+
+      it1   = (int) (365.25*y);
+      it2   = (int) (30.6001*(m+1));
+      mjdg  = it1+it2+idyg-679019;
+      fmjdg = (3600*ihrg+60*imng+secg)/86400.0;
+   }
+
+   public double jtssow(double tsec){
+
+//*** convert julian seconds to gps seconds of week
+//*** requires initialization of mjd0 by setjd0()
+
+      if(mjd0 <= -1){
+         System.err.println("Error--Gtime.jtssow()");
+         System.err.println("Error--initialize by setjd0()!");
+         System.exit(1);
+      }
+
+//*** steady increment -- decrement on week rollover
+//*** (validated: cross check against broadcast t0e)
+
+      int    nwks =         (mjd0-mjd6jan80)/7;
+      double sow  = tsec + ((mjd0-mjd6jan80-(nwks*7))*86400.0);
+      if(sow >= 604800.0) sow=sow-604800.0;
+
+      return sow;
+   }
+
+   public void sowciv(double gwk, double sow){
+
+//*** convert gps week/seconds of week to civil
+//*** requires initialization of mjd0 by setjd0()
+
+      if(mjd0 <= -1){
+         System.err.println("Error--Gtime.sowciv()");
+         System.err.println("Error--initialize by setjd0()!");
+         System.exit(1);
+      }
+
+      mjdg = (int) Math.floor(gwk*7 + sow/86400.0 + mjd6jan80);
+      fmjdg = fmod(sow,86400.0)/86400.0;             //*** preserves digits
+      this.mjdciv();
+   }
+
+   private double fmod(double f1, double f2){
+
+//*** modulus function
+//*** need to validate for negatives (both sides)
+
+      int n;
+
+      if(f1 >= 0.0){
+         n = (int) (f1/f2);
+         return f1 - n*f2;
+      }else{
+         return -this.fmod(-f1,f2);
+      }
+   }
+}//***endclass Gtime
+//************************************************************************
+
+class Matrix {
+
+//*** matrix manipulators -- no instance variables
+
+//*** overload 0-argument constructor -- error condition
+
+public Matrix() {
+   System.out.println("Don't call Matrix -- use 2-D arrays!");
+}
+
+//**************************************************************************
+//*** Static Methods *******************************************************
+//**************************************************************************
+
+   public static void writev(double a[]) {
+
+//*** write a vector to standard output
+
+      for(int i=0; i < a.length; i++) {
+         System.out.println(a[i]);
+      }
+   }
+
+   public static void writem(double a[][]) {
+
+//*** write a vector to standard output
+
+      for(int ir=0; ir < a.length; ir++) {
+         for(int jc=0; jc < a[ir].length; jc++) {
+            System.out.print(a[ir][jc]+" ");
+         }
+         System.out.println("");
+      }
+   }
+
+   public static double[] rowcopy(double a[][], int ir) {
+
+//*** copy matrix row to output vector
+
+      int n = a[ir].length-1;                    //*** fortran indexing
+
+      double w[] = new double[a[ir].length];     //*** scratch vector
+
+      for(int jc=1; jc <= n; jc++) {
+         w[jc] = a[ir][jc];
+      }
+      return w;
+   }
+
+   public static boolean vecadd(double a[], double b[], double c[]) {
+
+//*** add 2 vectors (1D arrays)
+
+      if(a.length != b.length) return false;
+      if(a.length != c.length) return false;
+
+      for(int i=1; i < a.length; i++) {
+         c[i]=a[i]+b[i];
+      }
+      return true;
+   }
+
+   public static boolean vecsub(double a[], double b[], double c[]) {
+
+//*** subtract 2 vectors (1D arrays)
+
+      if(a.length != b.length) return false;
+      if(a.length != c.length) return false;
+
+      for(int i=1; i < a.length; i++) {
+         c[i]=a[i]-b[i];
+      }
+      return true;
+   }
+
+   public static boolean nitial(double an[][], double u[]) {
+
+//*** initialize normal equations
+//*** works with normal() and nfill()
+
+      if(an.length != an[1].length) return false;
+      if(an.length != u.length)     return false;
+      int n=an.length;
+
+      for(int i=1; i < n; i++) {
+         u[i]=0.0;                           //*** right hand side
+         for(int j=i; j < n; j++) {          //*** upper triangle
+            an[i][j]=0.0;
+         }
+      }
+      return true;
+   }
+
+   public static boolean normal(double an[][], double u[], double d[], int lc[], 
+                                double f,      double p,   int nd               ) {
+
+//*** accumulate into normal equations
+//*** works with nitial() and nfill()
+
+//*** warning!! assumes parameter indices are monotonically increasing
+
+//***  FORM NORMALS FOR OBSERVATION EQUATIONS ONE OBSERVATION AT A TIME 
+//***            *****(NX + U = 0)***** 
+//***        N=A'PA         (N MATRIX STORED IN AN) 
+//***        U=A'PL         (L STORED IN F) 
+//***  CALLING SEQUENCE 
+//***    1)  NITIAL  (ONE TIME TO CLEAR NORMALS) 
+//***    2)  NORMAL  (ONCE FOR EACH OBSERVATION) 
+//***    3)  FILL    (ONE TIME TO FILL IN LOWER TRIANGULAR)
+ 
+//***  D = NON-ZERO ELEMENTS OF A ROW OF THE A MATRIX 
+//***  LC= COLUMN NUMBERS OF NON-ZERO ELEMENTS IN D.  ELEMENTS
+//***      OF LC MUST BE IN ASCENDING ORDER AND CORRESPOND TO 
+//***      D, I.E., D(J) IS THE NON-ZERO ELEMENT IN COLUMN LC(J)
+//***  ND= NUMBER OF ELEMENTS IN D AND LC 
+//***  N = ORDER OF THE SYSTEM (NUMBER OF UNKNOWNS) 
+
+//*** dimension an(n,n),u(n),d(nd),lc(nd)
+
+      if(an.length != an[1].length) return false;
+      if(an.length != u.length)     return false;
+      if(lc.length <  nd)           return false;  //*** can be longer than nd
+      if(d.length  <  nd)           return false;  //*** can be longer than nd
+
+      double pf=p*f;
+      for(int i=1; i <= nd; i++) {
+         int li=lc[i];
+         u[li]=u[li]+d[i]*pf;                  //*** right hand side
+         for(int j=i; j <= nd; j++) {          //*** upper triangle
+            int lj=lc[j];
+            an[li][lj]=an[li][lj]+d[i]*d[j]*p;
+         }
+      }
+      return true;
+   }
+
+   public static boolean nfill(double an[][]) {
+
+//*** fill in lower triangle of an n by n matrix
+//*** works with nitial() and normal()
+
+      if(an.length != an[1].length) return false;
+      int n=an.length;
+
+      for(int i=1; i < n; i++) {
+         for(int j=i; j < n; j++) {
+            an[j][i]=an[i][j];
+         }
+      }
+      return true;
+   }
+
+   public static boolean av(double a[][], double b[], double c[]) {
+
+//*** matrix/vector product c=ab       (a,b unchanged)
+
+//*** dimension a(l,m),b(m),c(l)
+
+      if(a.length    != c.length)    return false;
+      if(a[1].length != b.length)    return false;
+
+      int l=a.length;
+      int m=a[1].length;
+
+      for(int i=1; i < l; i++) {
+         c[i]=0.0;
+         for(int k=1; k < m; k++) {
+            c[i]=c[i]+a[i][k]*b[k];
+         }
+      }
+      return true;
+   }
+
+   public static boolean ab(double a[][], double b[][], double c[][]) {
+
+//*** matrix product c=ab       (a,b unchanged)
+
+//*** dimension a(l,m),b(m,n),c(l,n)
+
+      if(a.length    != c.length)    return false;
+      if(a[1].length != b.length)    return false;
+      if(b[1].length != c[1].length) return false;
+
+      int l=a.length;
+      int m=a[1].length;
+      int n=b[1].length;
+
+      for(int i=1; i < l; i++) {
+         for(int j=1; j < n; j++) {
+            c[i][j]=0.0;
+            for(int k=1; k < m; k++) {
+               c[i][j]=c[i][j]+a[i][k]*b[k][j];
+            }
+         }
+      }
+      return true;
+   }
+
+   public static boolean abat(double a[][], double b[][], double c[][]) {
+
+//*** matrix product c=aba'                (a,b unchanged)
+//*** warning: b is assumed symmetric
+
+//*** fortran-style indexing
+//*** dimension a(m,n),b(n,n),c(m,m),w(n)
+
+      if(a[1].length != b.length)    return false;
+      if(a[1].length != b[1].length) return false;
+
+      if(a.length != c.length)    return false;
+      if(a.length != c[1].length) return false;
+
+      int m = a.length-1;                    //*** fortran indexing
+      int n = a[1].length-1;                 //*** fortran indexing
+
+      double w[] = new double[b.length];     //*** scratch vector
+
+      for(int i=1; i <= m; i++) {
+         for(int k=1; k <= n; k++) {
+            w[k] = 0.0;
+            for(int l=1; l <= n; l++) {
+               w[k] = w[k] + a[i][l] * b[l][k];
+            }
+         }
+         for(int j=i; j <= m; j++) {
+            c[i][j] = 0.0;
+            for(int l=1; l <= n; l++) {
+               c[i][j] = c[i][j] + w[l] * a[j][l];
+            }
+            c[j][i] = c[i][j]; 
+         }
+      }
+      return true;
+   }
+
+   public static boolean versol(double a[][]) {
+
+//*** invert an i by i matrix in place
+
+      if(a.length != a[1].length) return false;
+
+      int      i = a.length-1;               //*** fortran indexing
+      double b[] = new double[a.length];     //*** scratch vector
+
+      if(i == 1){
+         a[1][1]=1.0/a[1][1];
+      }else{
+         int im=i-1;
+         for(int k=1; k <= i; k++) {
+            for(int j=1; j <= im; j++) {
+               b[j]=a[1][j+1]/a[1][1];
+            }
+            b[i]=1.0/a[1][1];
+            for(int l=1; l <= im; l++) {
+               for(int j=1; j <= im; j++) {
+                  a[l][j]=a[l+1][j+1]-a[l+1][1]*b[j];
+               } 
+               a[l][i]=-a[l+1][1]*b[i];
+            }
+            for(int j=1; j <= i; j++) {
+               a[i][j]=b[j];
+            }
+         }
+      }
+      return true;
+   }
+
+   public static boolean invert(double a[][]) {
+
+//*** invert an n by n matrix in place
+
+      double ann;
+
+      if(a.length != a[1].length) return false;
+      int n=a.length-1;
+
+      for(int i=1; i <= n; i++) {
+         double aii=1.0/a[i][i];
+         a[i][i]=aii;
+         for(int j=1; j <= n; j++) {
+            if(i != j){
+               double aji=a[j][i]*aii;
+               a[j][i]=aji;
+               for(int k=1; k <= n; k++) {
+                  if(i != k){
+                     a[j][k]=a[j][k]-aji*a[i][k];
+                     if(j == n) a[i][k]=-aii*a[i][k];
+                  }
+               }//*** k-loop
+            }
+         }
+      }
+      ann=-a[n][n];
+      for(int j=1; j <= n-1; j++) {
+         a[n][j]=ann*a[n][j];
+      }
+      return true;
+   }
+
+   public static double rcrt(double r[], double c[][]) {
+
+//*** matrix product val=rcr'                   (a,b unchanged)
+//*** warning: c is assumed symmetric(?)        (adapted from abat)
+
+//*** fortran-style indexing
+//*** dimension r(n),c(n,n)
+
+      if(r.length != c.length)    {
+         System.err.println("Error--rcrt() #1");
+         System.exit(1);
+      }
+      if(r.length != c[1].length) {
+         System.err.println("Error--rcrt() #2");
+         System.exit(1);
+      }
+
+      int n = c.length-1;                    //*** fortran indexing
+
+      double w[] = new double[r.length];     //*** scratch vector
+
+      for(int k=1; k <= n; k++) {
+         w[k] = 0.0;
+         for(int l=1; l <= n; l++) {
+            w[k] = w[k] + r[l] * c[l][k];
+         }
+      }
+
+      double val = 0.0;
+      for(int l=1; l <= n; l++) {
+         val = val + w[l]*r[l];
+      }
+      return val;
+   }
+}//***endclass Matrix
+//************************************************************************
+class Modes {
+
+//*** object to hold some processing modes
+
+   private boolean dualFreq;             //*** 2 frequency?
+   private boolean bIon;                 //*** b-cast iono?
+   private boolean pOrb;                 //*** precise orbit?
+   private boolean Trop;                 //*** tropo?
+   private double  vCut;                 //*** vert angle cutoff (deg)
+
+//*** methods (default constructor)
+
+   public Modes() {
+      dualFreq=false;
+      bIon=false;
+      pOrb=false;
+      Trop=false;
+      vCut=-1.0;    //*** degrees
+   }
+
+   public boolean isdFreq() {return dualFreq;}
+   public boolean isbIon()  {return bIon;}
+   public boolean ispOrb()  {return pOrb;}
+   public boolean isTrop()  {return Trop;}
+   public double getvCut()  {return vCut;}
+
+   public void putdFreq(boolean dF) {dualFreq = dF;}
+   public void putbIon (boolean bI) {bIon     = bI;}
+   public void putpOrb (boolean pO) {pOrb     = pO;}
+   public void putTrop (boolean Tr) {Trop     = Tr;}
+   public void putvCut (double  vC) {vCut     = vC;}
+
+}//***endclass Modes
+//************************************************************************

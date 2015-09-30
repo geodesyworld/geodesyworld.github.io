@@ -1,0 +1,139 @@
+<html>
+<head>
+<title>Robust Average Of Kinematic Series</title>
+</head>
+
+<META NAME="KEYWORDS" CONTENT="GPS, software">
+
+<body background="whitep.gif" text="#000000" link="#0000ff" vlink="#551a8b" alink="#ff0000">
+
+<h2><strong>ROBUST AVERAGE OF KINEMATIC SERIES</strong></h2>
+
+<p>Dennis Milbert
+
+<pre>
+Updated:  2-may-02
+</pre>
+
+<!-------     <br wp="br1"><br wp="br2">     ------>
+<p>The program, <em>answer</em>, scans the solution files from one of my
+kinematic programs, assumes the station is static, and
+computes a robust average of the position.
+
+<br wp="br1"><br wp="br2"><h3>Contents</h3>
+
+<ul>
+  <li><a href="#link0">Operation</a></li>
+  <li><a href="#link1">Output File Format</a></li>
+  <li><a href="#link5">Shortcomings</a></li>
+  <li><a href="#linkx">Source Code and Binary Executable</a></li>
+  <li><a href="#linkz">To Contact Me</a></li>
+  <li><a href="index.html">Back To Home</a></li>
+</ul>
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link0"><hr>
+<p>Operation</a></h4>
+
+<p>Program runs in a DOS window.  It reads data from a file that 
+you designate and sends results to the screen.
+
+<p>The program will then load the input file, compute the mean position,
+and position RMS (root mean square) dispersion for each coordinate.
+The program will iterate 9 times, bypassing points departing more than 2.5 times
+the RMS from the prior mean.  Typically, the RMS decreases as the outliers
+are bypassed, and the estimate of the mean converges.  The estimate of the
+mean (and estimates of the dispersion) are robust against outliers.
+
+<p>Input:
+
+<p>The program reads a flat ASCII file, 4 column text, blank delimited.  
+The columns are timestamp, latitude, longitude, height.  
+Latitude and longitude should be in decimal degrees.
+The timestamps (first column) are ignored.  Any extra columns are ignored.
+
+<p>This program is built to process ".out" files from
+<a href="gpr1f.htm" ><em>gpr1f</em></a> and other similar programs.
+
+<p>Output File:
+
+<p>Plain ASCII, pairs of records.  The first record in the pair is the
+mean latitude, longitude and height.  The second record in the pair
+is the RMS of the coordinates about the mean coordinates.
+
+<p>Discussion:
+
+<p>This program was built to test data collected at a static location, but
+processed kinematically.  At the risk of stating the obvious, results will
+be meaningless if the GPS unit is really in motion.
+
+<p>Using an outlier rejection tolerance of 2.5 works
+well for random data.  A much smaller tolerance winds up rejecting most of
+the data.  And, a larger tolerance leaves some gruesome values in the 
+average.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link1"><hr>
+<p>Output File Format</a></h4>
+
+<p>The screen output is 10 pairs of records, tracking the outlier
+rejections through 10 cycles.
+
+<pre>
+ASCII, 2 lines per cycle.
+
+Line 1
+--------
+01-14  mean geodetic latitude,  decimal degrees, positive north
+15-29  mean geodetic longitude, decimal degrees, positive east
+30-40  mean ellipsoidal height, meters, positive up
+41-47  number of unrejected epochs in average
+
+Line 2
+--------
+01-14  RMS geodetic latitude,  decimal degrees
+15-29  RMS geodetic longitude, decimal degrees
+30-40  RMS ellipsoidal height, meters
+</pre>
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link5"><hr>
+<p>Shortcomings</a></h4>
+
+<p>This is "no frills" software.  There are no warranties of any sort.
+No Windows GUI.  Just the core function.
+
+<p>The program won't work well for tiny data sets (e.g. 4 data points).
+Also, it won't work well if there is sizable trend due to an error source.
+The more random the data, the better it separates the outliers.
+
+<p>The program is coded to handle 90,000 records, but it can easily be
+changed and recompiled.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="linkx"><hr>
+<p>Source Code and Binary Executable</a></h4>
+
+<p>The Fortran source code is <a href="answer.for.txt">answer.for</a>.
+
+<p>The compiled executable (zipped) is <a href="answer.zip">answer.exe</a>.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="linkz"><hr>
+<p>To Contact Me</a></h4>
+
+<p>My e-mail user name is the first initial of my first name
+followed by all the letters of my last name (see above).  My ISP is
+"comcast", and it is a "dot-net", not a "dot-com".  Sorry for not spelling
+out my e-mail address, but I try to keep the spam-bots
+from fingering me.  But, just so the spam-bots don't feel left
+out, they can always go to abuse@comcast.net
+
+<!-- ------------------------------------------------------------------ -->
+<br wp="br1"><br wp="br2"><hr>
+
+<p>
+<a href="index.html">Back To Home</a>
+
+</body>
+</html>
