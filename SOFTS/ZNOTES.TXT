@@ -1,3 +1,0 @@
-need sp3.txt local (remondi/spofford)
-what does gpr1f do if the orbit runs out??
-does gar logger count up or down?
