@@ -1,0 +1,416 @@
+<html>
+<head>
+<title>Merge Multiple RINEX Files</title>
+</head>
+
+<META NAME="KEYWORDS" CONTENT="GPS, software, RINEX, carrier phase">
+
+<body background="whitep.gif" text="#000000" link="#0000ff" vlink="#551a8b" alink="#ff0000">
+
+<h2><strong>MERGE MULTIPLE RINEX FILES</strong></h2>
+
+<p>Dennis Milbert
+
+<pre>
+Updated:  2012-jul-19
+</pre>
+
+<!-------     <br wp="br1"><br wp="br2">     ------>
+<p>RINEX files are interesting animals.  The identity of columns varies from
+file to file.  The satellites are in any order, and can change order from epoch
+to epoch.  And, of course, data can start and stop at any time, and be logged
+at different rates at different sites.  RINEX is easy to write, but it takes
+work to read.
+
+<p>The program, <em>manyrins</em>, takes multiple RINEX files, and merges them into a single
+file in a format that I like.  Its ASCII in, and ASCII out.  Also, a list
+file, <em>list.txt</em>, is input to identify the file names of the RINEX files
+to be merged.
+
+<br wp="br1"><br wp="br2"><h3>Contents</h3>
+
+<ul>
+  <li><a href="#link0">Operation</a></li>
+  <li><a href="#link1">Program Execution</a></li>
+  <li><a href="#link2">RINEX Format</a></li>
+  <li><a href="#link3"><em>manyrins.txt</em> Format</a></li>
+  <li><a href="#link4">Memory Usage</a></li>
+  <li><a href="#link5">GPS Time System</a></li>
+  <li><a href="#link99">Shortcomings</a></li>
+  <li><a href="#linkx">Source Code and Binary Executable</a></li>
+  <li><a href="#linky">Links to Other Pages</a></li>
+  <li><a href="#linkyy">Acknowledgement</a></li>
+  <li><a href="#linkz">To Contact Me</a></li>
+  <li><a href="index.html">Back To Home</a></li>
+</ul>
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link0"><hr>
+<p>Operation</a></h4>
+
+<p>The program operates in the DOS console window.  
+You can spawn a console window from the "Start" menu by going through:
+<pre>
+   Start --> All Programs --> Accessories --> Command Prompt.
+</pre>
+
+Aside from the RINEX files you wish to merge, only one additional file
+is needed.  It is a simple ASCII list of the file names of the RINEX
+files.  Only one output file is generated.
+
+<p>Input Files:
+
+<p><em>list.txt</em> -- ASCII.  A simple list, created by Notepad (for
+example) of the file names of the RINEX files. This file must be named
+<em>list.txt</em>.  One RINEX observation file name per line.
+If an asterisk, *, is in column 1 of a line, then that line is skipped.
+
+<p>Example:
+<pre>
+colb1890.12o
+ohmh1890.12o
+stkr1890.12o
+wtzz1890.12o
+</pre>
+
+<p><em>many RINEX file names</em> -- ASCII, RINEX format.  
+These will be the RINEX observation files to be merged.  The files must
+all be present in the same subdirectory/folder as program <em>manyrins.exe</em>
+and the list file, <em>list.txt</em>.  The RINEX files must not be compressed.
+
+<p><em>manyrins</em> is built to merge single-day files on the same day.  
+Unexpected behaviors 
+will occur if RINEX files spanning two or more days are encountered.  
+<em>manyrins</em> should have correct operation if a file has just a second or two
+of data in the previous day or the next day.  In other words, <em>manyrins</em>
+merges RINEX files for multiple stations.  If you need to merge RINEX files
+in time, I can heartily recommend
+<a href="http://facility.unavco.org/software/teqc/">TEQC</a>. 
+
+<p><em>manyrins</em> supports RINEX formats up to and including 2.12. 
+<em>manyrins</em> does not currently support RINEX formats of 3.00 or higher.
+
+<p>Output File:
+
+<p><em>manyrins.txt</em> -- ASCII, "<em>manyrins</em>" format.  A single output file
+containing the merged contents of the input RINEX observation files.  The output
+file name is fixed as <em>manyrins.txt</em>.  It will be written into the same
+subdirectory as the input files.
+
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link1"><hr>
+<p>Program Execution</a></h4>
+
+<p><em>manyrins</em> takes 3 command line arguments.  Each argument is 
+an integer number, in seconds.  All 3 arguments are mandatory.
+
+<p>Command Line:
+<pre>
+manyrins startTime stopTime interval
+</pre>
+
+<p>Example:
+<pre>
+manyrins 0 86400 30
+</pre>
+
+<p><em>startTime</em> -- The start time of the output data; an integer, expressing
+seconds-of day, in units of seconds.  Allowed range of 0 to 86400.  Note that
+<em>startTime</em> must be less than or equal to <em>stopTime</em>.
+
+<p><em>stopTime</em> -- The stop time of the output data; an integer, expressing
+seconds-of day, in units of seconds.  Allowed range of 0 to 86400.  Note that
+<em>stopTime</em> must be greater than or equal to <em>startTime</em>.
+
+<p><em>interval</em> -- The interval of the output data; an integer, expressing
+time between output epochs, in units of seconds.  Allowed range of 0 to 86400.  Note that
+<em>interval</em> must be less than or equal to the difference between
+ <em>stopTime</em> and <em>startTime</em>.
+
+<p>Even if a small <em>startTime</em> or a large <em>stopTime</em> are specified,
+ <em>manyrins</em> will only
+output epochs that have data, and will adjust the output start and stop
+times to reflect the input RINEX files.
+
+<p>Discussion:
+
+<p>From the user perspective, the program is pretty straightforward.  
+It reformats data from many different
+RINEX inputs.  It uses <em>list.txt</em> to look for RINEX file names.  It 
+opens each file, and reads the data into memory.  Then it outputs the data
+into the <em>manyrins.txt</em> output file.  There is a built in limit of
+1000 input files.  You may encounter the limit sooner depending on how much
+data is retained in each RINEX file.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link2"><hr>
+<p>RINEX Format</a></h4>
+
+<p>The RINEX formats (2, 2.10, 2.11, 2.12, 3.00, 3.01) can be obtained from the 
+<a href="http://igscb.jpl.nasa.gov/igscb/data/format/">International GNSS Service</a>.
+Since <em>manyrins</em> supports
+<a href="http://igscb.jpl.nasa.gov/igscb/data/format/rinex212.txt">RINEX format 2.12</a>,
+that specific link is provided.  Note that the codes span 5 different GNSS satellite
+systems, each with 100 possible PRN's.  The codes also span 4 different observation
+sets (not counting signal strength) with 10 different subdivisions.  Not all possible
+PRN's or observation subdivisions are issued for a given GNSS satellite system.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link3"><hr>
+<p><em>manyrins.txt</em> Format</a></h4>
+
+<p>This is a simple ASCII, flat file.  There is no specific limit on the
+number of lines, nor on the number of columns in a line.  The basic
+unit of presentation is a two-dimensional array of observations, where the
+rows refer to markers/antennae and the columns refer to GNSS satellites.
+
+<p>These data arrays are orgainized in a sequential, hierarchical fashion.
+That is, a "chapter" of data refers to a single epoch.  And, a "page"
+of data refers to a specific observation type, such as a P1 pseudorange
+or an L2 carrier phase, and its associated two-dimensional array.  Just as
+a "chapter" consists of one or more "pages", an epoch of data
+consists of one or more observation types.
+
+<p>Every record contains a single-character record identifier in the first column.
+Record identifiers are detailed below.
+
+<p>The file begins with a set of header records.  The first record is always an "a" record.
+It indicates the time span, interval, and number of processed stations.  The "a"
+record is followed by one or more "b" records, one for each station.  The "b" records
+list the 4-character station identifier, antenna type, H/E/N offsets, and a RINEX code
+for the GNSS time system.
+
+<p>After the header are multiple chapters of data, corresponding to each epoch.
+The first record in each chapter is always an "e" record -- "Epoch Record".
+The epoch records show year, month, day, hour, minutes, and integer seconds in the
+GPS time system.
+
+<p>Following the "e" Epoch Record are multiple pages of data, each corresponding to 
+a specific observation type.  The first record on a page is always an "f" record.
+The record shows the RINEX code for the observation type, the number of rows (one row per 
+station), and the number of columns (one column per satellite).  All the data on the
+subsequent data array is of the indicated observation type.  Note that each
+array on a data page has been condensed to eliminate extraneous stations and satellites.
+Hence, the number of rows and columns will vary from observation type-to-observation type
+and from epoch-to-epoch.
+
+<p>Each "f" record is followed by one or more "t" records.  There will be one "t" 
+record for each row in the data array.  Each "t" record displays the 4-character
+station identifier and the logged observation time in the GPS time system.
+
+<p>After the "t" records is a single "s" record.  This record shows the GNSS identifier
+(satellite PRN's) for each column of the data array.
+
+<p>Finally, to conclude a data page, is the data array.  The array is made of one or 
+more "o" records.  There is one "o" record for every row of the data array.  And the
+records contain sufficient columns to reflect each satellite associated with that
+specific epoch and observation type.  Note that there will be instances where a given
+receiver did not record a particular observation type from a particular satellite at
+a particular epoch.  These will be expressed in the data array as a NULL observation.
+NULL observations are always displayed as 9999999999.999.
+
+<p>Example output file fragment:
+<pre>
+a      0 86400    30     4
+b COLB  TRM55971.00     NONE         0.0000         0.0000         0.0000  G
+b OHMH  TRM41249.00     TZGD         0.0000         0.0000         0.0000  G
+b STKR  ASH700718B      NONE         0.0000         0.0000         0.0000  G
+b WTZZ  LEIAR25.R3      LEIT         0.0450         0.0000         0.0000  G
+e 2012  7  7  0  0  0
+f L1    3   10
+t COLB  0.0000000
+t OHMH  0.0000000
+t STKR  0.0000000
+s G08 G28 G02 G17 G20 G01 G32 G27 G04 G09
+o  130855378.398  109586065.006  127858133.628  108341421.594  118047569.266  126304371.331  126941433.849  121926585.532  110436740.390  119411809.591
+o 9999999999.999  -24410420.567   -3294338.751  -23625890.891  -14829513.218   -7924981.183   -6940537.565  -15315852.458  -18454639.554  -14028603.325
+o 9999999999.999  -34431150.717   -6116081.646  -32877602.556  -14152549.942  -15375044.007   -7045731.299  -12370580.212  -20383884.530   -8201353.866
+f L2    3   10
+
+   ... and so on ...
+</pre>
+
+<p>
+Detailed <em>manyrins.txt</em> Formats with Fixed Column Output:
+
+<pre>
+a Record -- file header
+--------
+01-01  a
+04-08  start, seconds of day, GPS time system
+10-14  stop, seconds of day, GPS time system
+16-20  interval, seconds
+22-26  number of stations (total for the entire file)
+
+b Record -- station/antenna 
+--------
+01-01  b
+03-06  4-character marker name
+09-28  antenna type
+30-43  antenna delta H (meters)
+45-58  antenna delta E (meters)
+60-73  antenna delta N (meters)
+76-76  GNSS time system code (G,R,S,E,C)
+
+e Record -- epoch header  (GPS time system)
+--------
+01-01  e
+03-06  year
+08-09  month
+11-12  day
+14-15  hours
+17-18  minutes
+20-21  seconds
+
+f Record -- obseration type header
+--------
+01-01  f
+03-04  observation type code
+06-09  number of rows (stations)
+11-14  number of columns (satellites)
+
+t Record -- measured time
+--------
+01-01  t
+03-06  4-character marker name
+08-17  seconds of measured time (GPS time system)
+
+s Record -- satellite list
+--------
+01-01  s
+03-05  satellite identifier
+07-09  satellite identifier
+.....    continue for all columns specified in "f" record
+
+o Record -- observations for a given station
+--------
+01-01  s
+03-16  observation
+18-31  observation
+.....    continue for all columns specified in "f" record
+</pre>
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link5"><hr>
+<p>Memory Usage</a></h4>
+
+<p>Recall from above that <em>manyrins</em> opens each RINEX file, reads the data 
+into memory, and outputs the data into the <em>manyrins.txt</em> file.  
+System memory is a constraint on the amount of input data that can be merged
+by <em>manyrins</em>.  To support this constraint, <em>manyrins</em> outputs
+a console message indicating the percentage of available memory space used
+to process the input data.  For example:
+
+<pre>
+program memory use:  1.03596 precent
+</pre>
+
+<p>Program <em>manyrins</em> is efficient.  It only stores observations
+that fit the "start time/stop time/interval" profile supplied on the
+command line.
+Depending upon the number of satellites, data spans in the RINEX files,
+desired output data span, and observation types that were collected, it
+is literally possible for <em>manyrins</em> to merge hundreds of RINEX
+files into a single output file.  A software limit of 1000 input RINEX 
+files is (currently) used.  The work array sizes in <em>manyrins</em> are
+tuned to fit a WIN32 limit.  The source code is available 
+<a href="#linkx">(below)</a></li>
+and can be ported to other computer systems.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link5"><hr>
+<p>GPS Time System</a></h4>
+
+<p>All times output from <em>manyrins</em> are in a nominal GPS time system.
+
+<p>Times from SBAS (S), Galileo (E), and Compass (C), are already in a nominal
+GPS time system.  Program <em>manyrins</em> does not alter those times.
+
+<p>Times from GLONASS (R), however, might be expressed in the GLONASS time
+system.  The GLONASS time system is nominally aligned with UTC.
+Program <em>manyrins</em> detects the presence of the "R" time system code
+(typically found only in "pure" GLONASS-only RINEX files), and converts
+the times into nominal GPS time.
+
+<p>Conversion is performed by algebraically adding the leap seconds offset
+from the "LEAP SECONDS" record in the RINEX header to the GLONASS times.
+It is important that a "LEAP SECONDS" record be present in one of the input
+RINEX file headers supplied to <em>manyrins</em> when pure GLONASS files
+are processed.  If not present, <em>manyrins</em>
+will issue a warning message, and will not convert the GLONASS times.
+It is <em>not</em> recommended that the output file be used if the 
+warning message is issued.
+
+<p>Depending upon the application, the user may wish to apply finer time
+system corrections to the observed times.  To support this option, the
+time system identity of each input RINEX file is supplied in the 
+<em>manyrins.txt</em> "b" records.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link99"><hr>
+<p>Shortcomings</a></h4>
+
+<p>This is "no frills" software.  There are no warranties of any sort.
+No Windows GUI.  Just the core function.
+
+<p><em>manyrins</em> is built to merge single-day files on the same day.  
+Unexpected behaviors 
+will occur if RINEX files spanning two or more days are encountered. 
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="linkx"><hr>
+<p>Source Code and Binary Executable</a></h4>
+
+<p>The Fortran source code is <a href="manyrins.for.txt">manyrins.for</a>.
+
+<p>The compiled executable (zipped) is <a href="manyrins.zip">manyrins.exe</a>.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="linky"><hr>
+<p>Links to Other Pages</a></h4>
+
+<p>
+<p>Sources of RINEX GPS base station data
+<ul>
+
+<p>National Geodetic Survey:
+<a href="http://www.ngs.noaa.gov/CORS/">National CORS</a>. 
+
+<p>International GPS Service:
+<a href="http://igscb.jpl.nasa.gov/components/data.html">IGS Data Holdings</a>. 
+</ul>
+
+<p>
+<p>Merge GPS data in time
+<ul>
+
+<p>UNAVCO:
+<a href="http://facility.unavco.org/software/teqc/">TEQC</a>. 
+</ul>
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="linkyy"><hr>
+<p>Acknowledgement</a></h4>
+
+<p>This work is dedicated to Dr. Clyde Goad, a retired National Geodetic
+Survey colleague, who outlined the concept of this program.
+
+<!-- ------------------------------------------------------------------ -->
+<br wp="br1"><br wp="br2"><h4><a name="linkz"><hr>
+<p>To Contact Me</a></h4>
+
+<p>My e-mail user name is the first initial of my first name
+followed by all the letters of my last name (see above).  My ISP is
+"comcast", and it is a "dot-net", not a "dot-com".  Sorry for not spelling
+out my e-mail address, but I try to keep the spam-bots
+from fingering me.  But, just so the spam-bots don't feel left
+out, they can always go to abuse@comcast.net
+
+<!-- ------------------------------------------------------------------ -->
+<br wp="br1"><br wp="br2"><hr>
+
+<p>
+<a href="index.html">Back To Home</a>
+
+</body>
+</html>
