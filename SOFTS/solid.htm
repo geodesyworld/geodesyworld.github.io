@@ -12,7 +12,7 @@
 <p>Dennis Milbert
 
 <pre>
-Updated:  2016-feb-15</pre>
+Updated:  2016-dec-28</pre>
 
 <!-------     <br wp="br1"><br wp="br2">     ------>
 <p>The program, <em>solid</em>, will ask for a date and location,
@@ -66,7 +66,8 @@ Example of how to run the program:
 <!-- Dates must range from 1980-jan-06 through 2015-jun-29. -->
 <!-- Dates must range from 1980-jan-06 through 2015-dec-30. -->
 <!-- Dates must range from 1980-jan-06 through 2016-jun-29. -->
-Dates must range from 1980-jan-06 through 2016-dec-30.
+<!-- Dates must range from 1980-jan-06 through 2016-dec-30. -->
+Dates must range from 1980-jan-06 through 2017-jun-29.
 
 The program will then ask for a geodetic (ellipsoidal) latitude and
 longitude.  An Earth-centered, GRS80 ellipsoid is used.  (Which can be
@@ -95,7 +96,8 @@ a chance to cancel it.)
 <!-- <p>Dates must range from 1980-jan-06 through 2015-jun-29. -->
 <!-- <p>Dates must range from 1980-jan-06 through 2015-dec-30. -->
 <!-- <p>Dates must range from 1980-jan-06 through 2016-jun-29. -->
-<p>Dates must range from 1980-jan-06 through 2016-dec-30
+<!-- <p>Dates must range from 1980-jan-06 through 2016-dec-30 -->
+<p>Dates must range from 1980-jan-06 through 2017-jun-29.
 
 Input latitude is in decimal degrees, positive North.
 Input longitude is in decimal degrees, positive East, and may
@@ -155,7 +157,10 @@ precise point positioning must include the effect of solid earth tide.
 <p>Program <em>solid</em> is based on an edited version of the <em>dehanttideinelMJD.f</em> 
 source code provided by Professor V. Dehant.  This code is an implementation of 
 the solid earth tide computation found in section 7.1.2 of the
-<a href="http://62.161.69.131/iers/conv2003/conv2003.html">IERS Conventions (2003)</a>
+
+<!-- <a href="http://62.161.69.131/iers/conv2003/conv2003.html">IERS Conventions (2003)</a> -->
+<a href="https://www.iers.org/IERS/EN/Publications/TechnicalNotes/tn32.html">IERS Conventions (2003)</a>
+
 , IERS Technical Note No. 32.
 
 <p>A few words are in order about the editing.  <em>dehanttideinelMJD.f</em>
@@ -182,14 +187,19 @@ future leap seconds (i.e. after
 <!-- following refers to latest leap second -->
 <!-- following refers to latest leap second -->
 <!-- following refers to latest leap second -->
-June 30, 2015).
+<!-- June 30, 2015). -->
+December 31, 2016).
 
 <p>In keeping with the design of <em>dehanttideinelMJD.f</em>, program <em>solid</em>
 removes all tidal deformation, both cyclic and permanent.
 More detail on this point can be found
 in the section below on <a href="#link4">permanent earth tide</a>.
 <em>Solid</em> implements the conventions described in Section 7.1.2 of the
-<a href="http://62.161.69.131/iers/conv2003/conv2003.html">IERS Conventions (2003)</a>.
+
+<!-- <a href="http://62.161.69.131/iers/conv2003/conv2003.html">IERS Conventions (2003)</a> -->
+<a href="https://www.iers.org/IERS/EN/Publications/TechnicalNotes/tn32.html">IERS Conventions (2003)</a>
+.
+
 <em>Solid</em> does
 not implement ocean loading, atmospheric loading, or deformation due to polar motion,
 which are described in other sections of the Conventions.
@@ -285,7 +295,9 @@ This was adopted by the IAG in 1983.
 
 <p>This resolution has <em>not</em> met with widespread acceptance.  The situation is
 described in the
-<a href="http://62.161.69.131/iers/conv2003/conv2003.html">IERS Conventions (2003)</a>
+<!-- <a href="http://62.161.69.131/iers/conv2003/conv2003.html">IERS Conventions (2003)</a> -->
+<a href="https://www.iers.org/IERS/EN/Publications/TechnicalNotes/tn32.html">IERS Conventions (2003)</a>
+
 , IERS Technical Note No. 32, Section 1.1, page 10:
 
 <p><font size=-1>
@@ -317,8 +329,12 @@ permanent tide systems.
 <p>IERS Conventions (2003). Dennis D. McCarthy and Gérard Petit.
 (IERS Technical Note No. 32) Frankfurt am Main: Verlag des Bundesamts für Kartographie
 und Geodäsie, 2004. 127 pp., paperback, ISBN 3-89888-884-3,
-<a href="http://62.161.69.131/iers/conv2003/conv2003.html">
-(http://62.161.69.131/iers/conv2003/conv2003.html)</a>.
+
+<!-- <a href="http://62.161.69.131/iers/conv2003/conv2003.html"> -->
+<!-- (http://62.161.69.131/iers/conv2003/conv2003.html)</a>      -->
+
+<a href="https://www.iers.org/IERS/EN/Publications/TechnicalNotes/tn32.html">
+(https://www.iers.org/IERS/EN/Publications/TechnicalNotes/tn32.html)</a>.
 
 <p>In addition --
 
@@ -371,7 +387,9 @@ pieces when considering gravity and potential --
 These, in combination, generate another way to handle the tides systems for
 gravitational factors (i.e. zero tide).  The geometric PTD only sets up two
 permanent tide systems.  The
-<a href="http://62.161.69.131/iers/conv2003/conv2003.html">IERS Conventions (2003)</a>
+<!-- <a href="http://62.161.69.131/iers/conv2003/conv2003.html">IERS Conventions (2003)</a> -->
+<a href="https://www.iers.org/IERS/EN/Publications/TechnicalNotes/tn32.html">IERS Conventions (2003)</a>
+
 , Section 1.1, is recommended reading.
 </font>
 

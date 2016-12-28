@@ -7,7 +7,7 @@
       common/stuff/rad,pi,pi2
       common/comgrs/a,e2
 
-      write(*,*) 'program solid -- 2015jul10'
+      write(*,*) 'program solid -- 2016dec28'
 
 *** constants
 
@@ -25,9 +25,9 @@
 
 *** query section
 
-    1 write(*,'(a$)') 'Enter year    [1980-2016]: '
+    1 write(*,'(a$)') 'Enter year    [1980-2017]: '
       read(*,*) iyr
-      if(iyr.lt.1980.or.iyr.gt.2016) go to 1
+      if(iyr.lt.1980.or.iyr.gt.2017) go to 1
 
     2 write(*,'(a$)') 'Enter month number [1-12]: '
       read(*,*) imo
@@ -1240,7 +1240,9 @@
 ***** parameter(mjdhard=57022)            !*** cut-off date 2014dec31
 ***** parameter(mjdhard=57203)            !*** cut-off date 2015jun30
 ***** parameter(mjdhard=57387)            !*** cut-off date 2015dec31
-      parameter(mjdhard=57569)            !*** cut-off date 2016jun30
+***** parameter(mjdhard=57569)            !*** cut-off date 2016jun30
+***** parameter(mjdhard=57753)            !*** cut-off date 2016dec31
+      parameter(mjdhard=57934)            !*** cut-off date 2017jun30
 
       save  /mjdoff/
       common/mjdoff/mjd0
@@ -1295,10 +1297,13 @@
 *** 2009 JAN  1 =JD 2454832.5  TAI-UTC=  34.0s
 *** 2012 JUL  1 =JD 2456109.5  TAI-UTC=  35.0s
 *** 2015 JUL  1 =JD 2457204.5  TAI-UTC=  36.0s
+*** 2017 JAN  1 =JD 2457754.5  TAI-UTC=  37.0s
 
 *** test against newest leaps first
 
-      if    (mjd0t.ge.57204) then       !*** 2015 JUL 1 = 57204
+      if    (mjd0t.ge.57754) then       !*** 2017 JAN 1 = 57754
+        tai_utc = 37.d0
+      elseif(mjd0t.ge.57204) then       !*** 2015 JUL 1 = 57204
         tai_utc = 36.d0
       elseif(mjd0t.ge.56109) then       !*** 2012 JUL 1 = 56109
         tai_utc = 35.d0
