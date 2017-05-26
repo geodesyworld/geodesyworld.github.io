@@ -7,7 +7,7 @@
       common/stuff/rad,pi,pi2
       common/comgrs/a,e2
 
-      write(*,*) 'program solid -- 2016dec28'
+      write(*,*) 'program solid -- 2017jan10'
 
 *** constants
 
@@ -1242,7 +1242,8 @@
 ***** parameter(mjdhard=57387)            !*** cut-off date 2015dec31
 ***** parameter(mjdhard=57569)            !*** cut-off date 2016jun30
 ***** parameter(mjdhard=57753)            !*** cut-off date 2016dec31
-      parameter(mjdhard=57934)            !*** cut-off date 2017jun30
+***** parameter(mjdhard=57934)            !*** cut-off date 2017jun30
+      parameter(mjdhard=58118)            !*** cut-off date 2017dec31
 
       save  /mjdoff/
       common/mjdoff/mjd0
