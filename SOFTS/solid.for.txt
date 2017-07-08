@@ -7,7 +7,7 @@
       common/stuff/rad,pi,pi2
       common/comgrs/a,e2
 
-      write(*,*) 'program solid -- 2017jan10'
+      write(*,*) 'program solid -- 2017jul08'
 
 *** constants
 
@@ -25,9 +25,9 @@
 
 *** query section
 
-    1 write(*,'(a$)') 'Enter year    [1980-2017]: '
+    1 write(*,'(a$)') 'Enter year    [1980-2018]: '
       read(*,*) iyr
-      if(iyr.lt.1980.or.iyr.gt.2017) go to 1
+      if(iyr.lt.1980.or.iyr.gt.2018) go to 1
 
     2 write(*,'(a$)') 'Enter month number [1-12]: '
       read(*,*) imo
@@ -1243,7 +1243,8 @@
 ***** parameter(mjdhard=57569)            !*** cut-off date 2016jun30
 ***** parameter(mjdhard=57753)            !*** cut-off date 2016dec31
 ***** parameter(mjdhard=57934)            !*** cut-off date 2017jun30
-      parameter(mjdhard=58118)            !*** cut-off date 2017dec31
+***** parameter(mjdhard=58118)            !*** cut-off date 2017dec31
+      parameter(mjdhard=58299)            !*** cut-off date 2018jun30
 
       save  /mjdoff/
       common/mjdoff/mjd0
