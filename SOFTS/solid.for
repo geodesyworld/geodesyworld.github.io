@@ -1,13 +1,15 @@
       program solid
 
 *** driver to test solid earth tide
+*** UTC version
 
       implicit double precision(a-h,o-z)
       dimension rsun(3),rmoon(3),etide(3),xsta(3)
+      logical lflag                    !*** leap second table limit flag
       common/stuff/rad,pi,pi2
       common/comgrs/a,e2
 
-      write(*,*) 'program solid -- 2017jul08'
+      write(*,*) 'program solid -- UTC version -- 2018jun01'
 
 *** constants
 
@@ -25,9 +27,9 @@
 
 *** query section
 
-    1 write(*,'(a$)') 'Enter year    [1980-2018]: '
+    1 write(*,'(a$)') 'Enter year    [1901-2099]: '
       read(*,*) iyr
-      if(iyr.lt.1980.or.iyr.gt.2018) go to 1
+      if(iyr.lt.1901.or.iyr.gt.2099) go to 1
 
     2 write(*,'(a$)') 'Enter month number [1-12]: '
       read(*,*) imo
@@ -67,16 +69,17 @@
 
       ihr=   0
       imn=   0
-      sec=0.d0                                       !*** GPS time system
+      sec=0.d0                                         !*** UTC time system
       call civmjd(iyr,imo,idy,ihr,imn,sec,mjd,fmjd)
-      call mjdciv(mjd,fmjd,iyr,imo,idy,ihr,imn,sec)  !*** normalize civil time
+      call mjdciv(mjd,fmjd,iyr,imo,idy,ihr,imn,sec)    !*** normalize civil time
       call setjd0(iyr,imo,idy)
 
-      tdel2=1.d0/60.d0/24.d0                         !*** 1 minute in GPS days
+      tdel2=1.d0/60.d0/24.d0                           !*** 1 minute steps
       do iloop=0,60*24
-        call sunxyz (mjd,fmjd,rsun)
-        call moonxyz(mjd,fmjd,rmoon)
-        call detide (xsta,mjd,fmjd,rsun,rmoon,etide)
+        lflag=.false.                           !*** false means flag not raised
+        call sunxyz (mjd,fmjd,rsun,lflag)                   !*** mjd/fmjd in UTC
+        call moonxyz(mjd,fmjd,rmoon,lflag)                  !*** mjd/fmjd in UTC
+        call detide (xsta,mjd,fmjd,rsun,rmoon,etide,lflag)  !*** mjd/fmjd in UTC
         xt = etide(1)
         yt = etide(2)
         zt = etide(3)
@@ -94,12 +97,21 @@
         fmjd=(idnint(fmjd*86400.d0))/86400.d0      !*** force 1 sec. granularity
       enddo
 
+*** test flag and end of processing
+
+      if(lflag) then
+        write(*,'(a)') 'Mild Warning -- time crossed leap second table'
+        write(*,'(a)') '  boundaries.  Boundary edge value used instead'
+      endif
+      write(*,'(a)') 'End Of Processing -------------------------------'
+
       end
 *@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-      subroutine detide(xsta,mjd,fmjd,xsun,xmon,dxtide)
+      subroutine detide(xsta,mjd,fmjd,xsun,xmon,dxtide,lflag)
 
 *** computation of tidal corrections of station displacements caused
 ***    by lunar and solar gravitational attraction
+*** UTC version
 
 *** step 1 (here general degree 2 and 3 corrections +
 ***         call st1idiu + call st1isem + call st1l1)
@@ -113,14 +125,15 @@
 ***   xsta(i),i=1,2,3   -- geocentric position of the station (ITRF/ECEF)
 ***   xsun(i),i=1,2,3   -- geoc. position of the sun (ECEF)
 ***   xmon(i),i=1,2,3   -- geoc. position of the moon (ECEF)
-***   mjd,fmjd          -- modified julian day (and fraction) (in GPS time)
+***   mjd,fmjd          -- modified julian day (and fraction) (in UTC time)
 
 ****old calling sequence*****************************************************
 ***   dmjd               -- time in mean julian date (including day fraction)
 ***   fhr=hr+zmin/60.+sec/3600.   -- hr in the day
 
 *** outputs
-***   dxtide(i),i=1,2,3           -- displacement vector (ITRF)
+***   dxtide(i),i=1,2,3  -- displacement vector (ITRF)
+***   lflag              -- leap second table limit flag, false:flag not raised
 
 *** author iers 1996 :  v. dehant, s. mathews and j. gipson
 ***    (test between two subroutines)
@@ -134,22 +147,28 @@
 *** modified to use TT time system to call step 2 functions
 *** sign correction by V.Dehant to match eq.16b, p.81, Conventions
 *** applied by Dennis Milbert 2007may05
+*** UTC version by Dennis Milbert 2018june01
 
       implicit double precision(a-h,o-z)
       double precision xsta(3),xsun(3),xmon(3),dxtide(3),xcorsta(3)
       double precision h20,l20,h3,l3,h2,l2
       double precision mass_ratio_sun,mass_ratio_moon
+      logical lflag,leapflag
+      save  /limitflag/                !*** leap second table limit flag
+      common/limitflag/leapflag        !*** leap second table limit flag
 
 *** nominal second degree and third degree love numbers and shida numbers
 
       data h20/0.6078d0/,l20/0.0847d0/,h3/0.292d0/,l3/0.015d0/
 
 *** internal support for new calling sequence
-*** also convert GPS time into TT time
+*** first, convert UTC time into TT time (and, bring leapflag into variable)
 
-      tsecgps=fmjd*86400.d0                       !*** GPS time (sec of day)
-      tsectt =gps2tt(tsecgps)                     !*** TT  time (sec of day)
-      fmjdtt =tsectt/86400.d0                     !*** TT  time (fract. day)
+      leapflag=lflag
+      tsecutc =fmjd*86400.d0                       !*** UTC time (sec of day)
+      tsectt  =utc2ttt(tsecutc)                    !*** TT  time (sec of day)
+      fmjdtt  =tsectt/86400.d0                     !*** TT  time (fract. day)
+      lflag   = leapflag
 
       dmjdtt=mjd+fmjdtt                           !*** float MJD in TT
 *** commented line was live code in dehanttideinelMJD.f
@@ -695,12 +714,14 @@
       return
       end
 *@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-      subroutine moonxyz(mjd,fmjd,rm)
+      subroutine moonxyz(mjd,fmjd,rm,lflag)
 
 *** get low-precision, geocentric coordinates for moon (ECEF)
+*** UTC version
 
-*** input:  mjd/fmjd, is Modified Julian Date (and fractional) in GPS time
+*** input:  mjd/fmjd, is Modified Julian Date (and fractional) in UTC time
 *** output: rm, is geocentric lunar position vector [m] in ECEF
+***         lflag  -- leap second table limit flag,  false:flag not raised
 *** 1."satellite orbits: models, methods, applications" montenbruck & gill(2000)
 *** section 3.3.2, pg. 72-73
 *** 2."astronomy on the personal computer, 4th ed." montenbruck & pfleger (2005)
@@ -708,13 +729,18 @@
 
       implicit double precision(a-h,o-z)
       dimension rm(3)
+      logical lflag,leapflag
+      save  /limitflag/                !*** leap second table limit flag
+      common/limitflag/leapflag        !*** leap second table limit flag
       common/stuff/rad,pi,pi2
 
 *** use TT for lunar ephemerides
 
-      tsecgps=fmjd*86400.d0                       !*** GPS time (sec of day)
-      tsectt =gps2tt(tsecgps)                     !*** TT  time (sec of day)
+      leapflag=lflag
+      tsecutc=fmjd*86400.d0                       !*** UTC time (sec of day)
+      tsectt =utc2ttt(tsecutc)                    !*** TT  time (sec of day)
       fmjdtt =tsectt/86400.d0                     !*** TT  time (fract. day)
+      lflag   = leapflag
 
 *** julian centuries since 1.5 january 2000 (J2000)
 ***   (note: also low precision use of mjd --> tjd)
@@ -813,7 +839,7 @@
 ********************************************************************************
       subroutine getghar(mjd,fmjd,ghar)
 
-*** convert mjd/fmjd in GPS time to Greenwich hour angle (in radians)
+*** convert mjd/fmjd in UTC time to Greenwich hour angle (in radians)
 
 *** "satellite orbits: models, methods, applications" montenbruck & gill(2000)
 *** section 2.3.1, pg. 33
@@ -821,11 +847,10 @@
       implicit double precision(a-h,o-z)
       common/stuff/rad,pi,pi2
 
-*** need UT to get sidereal time  ("astronomy on the personal computer", 4th ed)
+*** need UTC to get sidereal time ("astronomy on the personal computer", 4th ed)
 ***                               (pg.43, montenbruck & pfleger, springer, 2005)
 
-      tsecgps=fmjd*86400.d0                        !*** GPS time (sec of day)
-      tsecutc=gps2utc(tsecgps)                     !*** UTC time (sec of day)
+      tsecutc=fmjd*86400.d0                        !*** UTC time (sec of day)
       fmjdutc=tsecutc/86400.d0                     !*** UTC time (fract. day)
 
 ***** d = MJD - 51544.5d0                               !*** footnote
@@ -852,12 +877,13 @@
       return
       end
 ********************************************************************************
-      subroutine sunxyz(mjd,fmjd,rs)
+      subroutine sunxyz(mjd,fmjd,rs,lflag)
 
 *** get low-precision, geocentric coordinates for sun (ECEF)
 
-*** input, mjd/fmjd, is Modified Julian Date (and fractional) in GPS time
+*** input, mjd/fmjd, is Modified Julian Date (and fractional) in UTC time
 *** output, rs, is geocentric solar position vector [m] in ECEF
+***         lflag  -- leap second table limit flag,  false:flag not raised
 *** 1."satellite orbits: models, methods, applications" montenbruck & gill(2000)
 *** section 3.3.2, pg. 70-71
 *** 2."astronomy on the personal computer, 4th ed." montenbruck & pfleger (2005)
@@ -865,6 +891,9 @@
 
       implicit double precision(a-h,o-z)
       dimension rs(3)
+      logical lflag,leapflag
+      save  /limitflag/                !*** leap second table limit flag
+      common/limitflag/leapflag        !*** leap second table limit flag
       common/stuff/rad,pi,pi2
 
 *** mean elements for year 2000, sun ecliptic orbit wrt. Earth
@@ -876,9 +905,11 @@
 
 *** use TT for solar ephemerides
 
-      tsecgps=fmjd*86400.d0                       !*** GPS time (sec of day)
-      tsectt =gps2tt(tsecgps)                     !*** TT  time (sec of day)
+      leapflag=lflag
+      tsecutc=fmjd*86400.d0                       !*** UTC time (sec of day)
+      tsectt =utc2ttt(tsecutc)                    !*** TT  time (sec of day)
       fmjdtt =tsectt/86400.d0                     !*** TT  time (fract. day)
+      lflag   = leapflag
 
 *** julian centuries since 1.5 january 2000 (J2000)
 ***   (note: also low precision use of mjd --> tjd)
@@ -1185,66 +1216,58 @@
       return
       end
 ************************************************************************
-*** supplemental time functions ****************************************
+*** new supplemental time functions ************************************
 ************************************************************************
-      double precision function gps2tt(tsec)
+      double precision function utc2ttt(tutc)
 
-*** convert tsec in GPS to tsec in TT
+*** convert utc (sec) to terrestrial time (sec)
 
       implicit double precision(a-h,o-z)
 
-      gps2tt=tsec+51.184d0                          !*** fixed offset
+      ttai   = utc2tai(tutc)
+      utc2ttt= tai2tt(ttai)
 
       return
       end
-      double precision function gps2utc(tsec)
+*-----------------------------------------------------------------------
+      double precision function gps2ttt(tgps)
 
-*** convert tsec in GPS to tsec in UTC
+*** convert gps time (sec) to terrestrial time (sec)
 
       implicit double precision(a-h,o-z)
 
-*** GPS is ahead of UTC  (c.f. USNO)
-*** UTC is behind GPS
-*** gpsleap() is (so far) positive (and increasing)
-*** so, must subtract gpsleap from GPS to get UTC
-
-      gps2utc=tsec-gpsleap(tsec)
+      ttai   = gps2tai(tgps)
+      gps2ttt= tai2tt(ttai)
 
       return
       end
-      double precision function gpsleap(tsec)
+*-----------------------------------------------------------------------
+      double precision function utc2tai(tutc)
 
-*** return total leap seconds since GPS epoch 1980jan06
-
-*** note: does **NOT** return the full TAI-UTC delta
-*** input time is GPS seconds -- initialized by setjd0()
-*** Y2K -- only functional between 1980jan06-00:00:00  (GPS time start)
-***                            and hard-coded date
+*** convert utc (sec) to tai (sec)
 
       implicit double precision(a-h,o-z)
+
+      utc2tai = tutc - getutcmtai(tutc)
+
+      return
+      end
+*-----------------------------------------------------------------------
+      double precision function getutcmtai(tsec)
+
+*** get utc - tai (s)
 
 ***** "Julian Date Converter"
 ***** http://aa.usno.navy.mil/data/docs/JulianDate.php
-***** "Bulletin C"
-***** http://hpiers.obspm.fr/eoppc/bul/bulc/bulletinc.dat
-***** parameter(mjdhard=55196)            !*** cut-off date 2009dec31
-***** parameter(mjdhard=55377)            !*** cut-off date 2010jun30
-***** parameter(mjdhard=55561)            !*** cut-off date 2010dec31
-***** parameter(mjdhard=55742)            !*** cut-off date 2011jun30
-***** parameter(mjdhard=55926)            !*** cut-off date 2011dec31
-***** parameter(mjdhard=56108)            !*** cut-off date 2012jun30
-***** parameter(mjdhard=56292)            !*** cut-off date 2012dec31
-***** parameter(mjdhard=56473)            !*** cut-off date 2013jun30
-***** parameter(mjdhard=56657)            !*** cut-off date 2013dec31
-***** parameter(mjdhard=56838)            !*** cut-off date 2014jun30
-***** parameter(mjdhard=57022)            !*** cut-off date 2014dec31
-***** parameter(mjdhard=57203)            !*** cut-off date 2015jun30
-***** parameter(mjdhard=57387)            !*** cut-off date 2015dec31
-***** parameter(mjdhard=57569)            !*** cut-off date 2016jun30
-***** parameter(mjdhard=57753)            !*** cut-off date 2016dec31
-***** parameter(mjdhard=57934)            !*** cut-off date 2017jun30
-***** parameter(mjdhard=58118)            !*** cut-off date 2017dec31
-      parameter(mjdhard=58299)            !*** cut-off date 2018jun30
+
+      implicit double precision(a-h,o-z)
+      parameter(MJDUPPER=58664)    !*** upper limit, leap second table, 2019jun30
+***** parameter(MJDUPPER=58299)    !*** upper limit, leap second table, 2018jun30
+      parameter(MJDLOWER=41317)    !*** lower limit, leap second table, 1972jan01
+
+      logical leapflag             !*** leap second table limit flag
+      save  /limitflag/
+      common/limitflag/leapflag    !*** leap second table limit flag
 
       save  /mjdoff/
       common/mjdoff/mjd0
@@ -1266,21 +1289,32 @@
         go to 2
       endif
 
-*** test date limits
+*** test upper table limit         (upper limit set by bulletin C memos)
 
-      if(mjd0t.gt.mjdhard) then
-        write(*,*) 'FATAL ERROR --'
-        write(*,*) 'exceeded cut-off date in gpsleap()'
-        stop 66766
+      if(mjd0t.gt.MJDUPPER) then
+        leapflag  =.true.               !*** true means flag *IS* raised
+        getutcmtai= -37.d0              !*** return the upper table value
+        return
       endif
 
-      if(mjd0t.lt.44244) then             !*** 1980jan06
-        write(*,*) 'FATAL ERROR --'
-        write(*,*) 'cut-off date underflow in gpsleap()'
-        stop 66767
+*** test lower table limit
+
+      if(mjd0t.lt.MJDLOWER) then
+        leapflag=.true.                 !*** true means flag *IS* raised
+        getutcmtai= -10.d0              !*** return the lower table value
+        return
       endif
 
-*** http://maia.usno.navy.mil/ser7/tai-utc.dat
+***** http://maia.usno.navy.mil/ser7/tai-utc.dat
+*** 1972 JAN  1 =JD 2441317.5  TAI-UTC=  10.0s
+*** 1972 JUL  1 =JD 2441499.5  TAI-UTC=  11.0s
+*** 1973 JAN  1 =JD 2441683.5  TAI-UTC=  12.0s
+*** 1974 JAN  1 =JD 2442048.5  TAI-UTC=  13.0s
+*** 1975 JAN  1 =JD 2442413.5  TAI-UTC=  14.0s
+*** 1976 JAN  1 =JD 2442778.5  TAI-UTC=  15.0s
+*** 1977 JAN  1 =JD 2443144.5  TAI-UTC=  16.0s
+*** 1978 JAN  1 =JD 2443509.5  TAI-UTC=  17.0s
+*** 1979 JAN  1 =JD 2443874.5  TAI-UTC=  18.0s
 *** 1980 JAN  1 =JD 2444239.5  TAI-UTC=  19.0s
 *** 1981 JUL  1 =JD 2444786.5  TAI-UTC=  20.0s
 *** 1982 JUL  1 =JD 2445151.5  TAI-UTC=  21.0s
@@ -1300,6 +1334,9 @@
 *** 2012 JUL  1 =JD 2456109.5  TAI-UTC=  35.0s
 *** 2015 JUL  1 =JD 2457204.5  TAI-UTC=  36.0s
 *** 2017 JAN  1 =JD 2457754.5  TAI-UTC=  37.0s
+***** other leap second references at:
+***** http://hpiers.obspm.fr/eoppc/bul/bulc/Leap_Second_History.dat
+***** http://hpiers.obspm.fr/eoppc/bul/bulc/bulletinc.dat
 
 *** test against newest leaps first
 
@@ -1341,8 +1378,26 @@
         tai_utc = 20.d0
       elseif(mjd0t.ge.44239) then       !*** 1980 JAN 1 = 44239
         tai_utc = 19.d0
+      elseif(mjd0t.ge.43874) then       !*** 1979 JAN 1 = 43874
+        tai_utc = 18.d0
+      elseif(mjd0t.ge.43509) then       !*** 1978 JAN 1 = 43509
+        tai_utc = 17.d0
+      elseif(mjd0t.ge.43144) then       !*** 1977 JAN 1 = 43144
+        tai_utc = 16.d0
+      elseif(mjd0t.ge.42778) then       !*** 1976 JAN 1 = 42778
+        tai_utc = 15.d0
+      elseif(mjd0t.ge.42413) then       !*** 1975 JAN 1 = 42413
+        tai_utc = 14.d0
+      elseif(mjd0t.ge.42048) then       !*** 1974 JAN 1 = 42048
+        tai_utc = 13.d0
+      elseif(mjd0t.ge.41683) then       !*** 1973 JAN 1 = 41683
+        tai_utc = 12.d0
+      elseif(mjd0t.ge.41499) then       !*** 1972 JUL 1 = 41499
+        tai_utc = 11.d0
+      elseif(mjd0t.ge.41317) then       !*** 1972 JAN 1 = 41317
+        tai_utc = 10.d0
 
-*** should never get here
+*** should never, ever get here
 
       else
         write(*,*) 'FATAL ERROR --'
@@ -1350,9 +1405,34 @@
         stop 66768
       endif
 
-*** convert TAI-UTC into GPS leap seconds
+*** return utc - tai (in seconds)
 
-      gpsleap = tai_utc - 19.d0
+      getutcmtai = -tai_utc
+
+      return
+      end
+*-----------------------------------------------------------------------
+      double precision function tai2tt(ttai)
+
+*** convert tai (sec) to terrestrial time (sec)
+
+      implicit double precision(a-h,o-z)
+
+***** http://tycho.usno.navy.mil/systime.html
+      tai2tt = ttai + 32.184d0
+
+      return
+      end
+*-----------------------------------------------------------------------
+      double precision function gps2tai(tgps)
+
+*** convert gps time (sec) to tai (sec)
+
+      implicit double precision(a-h,o-z)
+
+***** http://leapsecond.com/java/gpsclock.htm
+***** http://tycho.usno.navy.mil/leapsec.html
+      gps2tai = tgps + 19.d0
 
       return
       end
