@@ -1,0 +1,205 @@
+<html>
+<head>
+<title>Variational Equations for Orbit Determination by Differential Correction</title>
+</head>
+
+<META NAME="KEYWORDS" CONTENT="variational, equations, orbit, determination, differential, correction">
+
+<body background="whitep.gif" text="#000000" link="#0000ff" vlink="#551a8b" alink="#ff0000">
+
+<h2><strong>VARIATIONAL EQUATIONS FOR ORBIT DETERMINATION BY DIFFERENTIAL CORRECTION</strong></h2>
+
+<p>Dennis Milbert
+
+<pre>
+Updated:  2024-may-02</pre>
+
+<!-------     <br wp="br1"><br wp="br2">     ------>
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link1"><hr>
+<p>Orbit Determination</a></h4>
+
+One may consider an orbit as an object's 3-D position and velocity when modeled by a collection
+of force models.  The principal model is Earth gravitation, supplemented by lunisolar
+perturbations, solar radiation pressure, atmospheric drag, etc...
+The force models only model object accelleration, and are expressed as second-order
+differential equations.  The key issue is that a realistic set of force models does not
+possess simple parametric functional solutions { e.g. y=f(x) } for the position and velocity.
+For such complex cases, we must turn to numerical integration for numerical solutions to the 
+differential equations.  
+Also, differential equations are often solved, analytically or numerically, as initial value problems;
+which lead to different trajectories depending upon the choice of initial values.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link1"><hr>
+<p>Differential Correction</a></h4>
+
+<p>Differential correction (DC) is the change of position and velocity in the future from a
+change in one's initial values of position and velocity.  These derivatives are expressed as a
+time-dependent state transition matrix (STM).  More exactly, DC frequently refers to 
+not only the STM derivatives, but also their contribution in a parameter estimation algorithm
+(e.g. least-squares estimation).  Thus, discrete measurements of an orbital object in time
+may be related to an optimal solution of the initial values, and an associated optimal orbit.
+
+<p>The DC method is also extended to encompass change of position and velocity in the future 
+from a change in the estimates of one or more force model parameters; like gravitational
+or atmospheric drag variation.  These derivatives are expressed as a
+time-dependent sensitivity matrix, S(t), and also participate in a least-squares algorithm.
+
+<p>In its most general form, differential correction (DC) may be applied, not only to 
+orbit determination, but to any physical process that is formulated with a differential
+equation model, and which does not possess analytic solutions.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link1"><hr>
+<p>Variational Equations</a></h4>
+
+As mentioned above, both the state transition matrix (STM) and the sensitivity matrix, S(t)
+are time-dependent.  Their evolution in time is also described by differential equations.
+These differential equations are called variational equations.  These equations are
+auxiliary to the force model differential equations.
+
+<p>The force model differential equations describe evolution of an object's position and velocity.
+The variational differential equations describe evolution of the derivatives of an
+object's position and velocity with respect to the force model initial values of position and
+velocity, and the force model parameters (if any).
+
+<p>Also note that since variational equations are differential equations, they will evolve in
+time, and will also possess initial values.  The initial values of the STM are the identity
+matrix; and, the initial values of the sensitivity matrix, S(t), are all zero when time, t, is
+the initial time associated with the initial values, t0.
+
+<p><font size=-1>
+Fine Print:
+There is a level of abstraction in variational equations that makes first encounters difficult.
+I wrote this study in large measure to provide practical examples in variational equation 
+solutions as a part of the least-squares estimation process.
+</font>
+
+<p><font size=-1>
+Footnote:
+Variational equations are not restricted to orbit determination.  They arise from <em>any</em>
+differential equation that is expressed as an initial value problem.
+</font>
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link1"><hr>
+<p>The Question</a></h4>
+
+<p>Over the past 15 years, a source has argued that the sensitivity matrix, S(t), can not be
+initialized to zero.  This was a bold assertion, since it contradicted standard practice
+for orbit determination by the differential correction (DC) method.  Further, it contradicted
+the DC solution method used in many other non-orbit applications.
+
+<p>Which viewpoint is correct?
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link1"><hr>
+<p>The Analysis</a></h4>
+
+<p>I numerically tested a simple problem: 2-D ballistic motion
+that happened to have a closed form (analytic) solution.  (This was inspired by the
+Uniform Gravity Field Model of Section 1.2 of Tapley, et.al (2004).)
+
+<p>Results showed that the sensitivity matrix, S(t), <em>must</em> be
+initialized to zero.
+
+<p>I extended the analysis by numerically testing 3-D central force (Keplerian) 
+motion, which also had an exact analytic solution.
+
+<p>Results showed that the sensitivity matrix, S(t), <em>must</em> be
+initialized to zero.
+
+<p>I shared these results with a valued colleague, Prof. Christopher Jekeli.
+He had many insightful comments.  In the course of our discussions, I algebraically
+derived the state transition matrix (STM) and the sensitivity matrix, S(t), for
+both a simple and a forced harmonic oscillator (where the start position is at
+time, t=0).  These derivations showed that S(t=0) must be all zeros.  And, no surprise, 
+numerical tests of the oscillator problems showed the sensitivity matrix, S(t), must be
+initialized to zero (as indicated by the algebra).
+
+<p>In the course of my work, I found that concrete examples of variational equations,
+particularly as they related to differential correction, were lacking in the
+literature.  This caused me document my work as a guidebook, so that a student can more 
+readily grasp how to use variational equations to solve estimation problems for
+dynamical systems governed by differential equations.
+
+<p>Prof. Jekeli was so interested in my writeup, he derived a new proof that, in 
+general, the sensitivity matrix, S(t), must be initialized to zero.  I provided some useful 
+comments to him, and he insisted that I be the second author of a scientific note he was writing.
+
+<p>After valuable suggestions by a reviewer, we enlarged the note to a paper, to appeal
+to a wider audience.  And, prior to submission, Prof. Jekeli insisted that I be the first author 
+of this revised paper.  But please note, the new general proof on S(t) initialization is the 
+brainchild of Prof. Jekeli.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><h4><a name="link2"><hr>
+<p>The Study</a></h4>
+
+<p>The 61 page study is entitled: 
+
+<a href="https://geodesy.noaa.gov/library/pdfs/variational-equations-orbit-determination-differential.pdf">Variational Equations for Orbit Determination by Differential Correction</a>.
+(1.02MB).
+
+<p>The study explores the sensitivity matrix question both numerically and 
+mathematically.  This includes relating an general mathematical derivation of the 
+variational equations, and their initial values, made by other authors.
+
+<p>This study can be considered as a supplement to an advanced course in
+satellite geodesy/orbit determination.  It main virtue is that it details the
+mathematical setup of both force models and variational equations for a number
+of physical problems.  It demonstrates the process in the least-squares estimation
+of optimal initial values and supporting parameters.
+
+<p>Readers should be comfortable with differential calculus and differential equations.
+Readers should also be familiar with least squares and simple matrix algebra.
+Knowledge of some simple physics will aid in understanding the examples.  
+Knowledge of the analytic solution to Kepler's 
+Problem (as found in an introductory satellite geodesy/orbit determination course) 
+will help with one example.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><h4><a name="link2"><hr>
+<p>The Paper</a></h4>
+
+<p>The paper is available at the Journal of Geodesy website: 
+
+<a href="https://link.springer.com/article/10.1007/s00190-023-01776-4">On the initialization of the sensitivity matrix in variational equations</a>.
+
+<!--
+<p>Citation: 
+Milbert, D., Jekeli, C. On the initialization of the sensitivity matrix in variational equations. J Geod 97, 88 (2023).
+<a href="https://doi.org/10.1007/s00190-023-01776-4">https://doi.org/10.1007/s00190-023-01776-4</a>
+-->
+
+<p>The paper contains the new general proof, by Prof. Jekeli, that the sensitivity matrix 
+variational equations must be set to zero at the initial time.  
+
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="link4"><hr>
+<p>References</a></h4>
+
+<p>Tapley, Byron D., Bob E. Schutz, and George H. Born, 2004:  
+<em>Statistical Orbit Determination</em>.  Elsevier Academic Press, Burlington, MA, 547 pp.
+
+<!-- --------------------------------------------------------------------- -->
+<br wp="br1"><br wp="br2"><h4><a name="linkz"><hr>
+<p>To Contact Me</a></h4>
+
+<p>My e-mail user name is the first initial of my first name,
+followed by all the letters of my last name (see above),
+followed by the digit 'five'.  My mail service is 'gmail', 
+and it is a 'dot-com"'.  Sorry for not spelling
+out my e-mail address, but I try to keep the spam-bots
+from fingering me.
+<!-- ------------------------------------------------------------------ -->
+<br wp="br1"><br wp="br2"><hr>
+
+<p>
+<a href="index.html">Back To Home</a>
+
+</body>
+</html>
